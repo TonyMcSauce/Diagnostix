@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIAGNOSTIX v2 — Advanced Industrial Maintenance Training Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammerjs/2.0.8/hammer.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;500;600;700;900&family=Barlow:wght@300;400;500&display=swap');
+
+:root {
+  --bg-deep:     #060a0c;
+  --bg-panel:    #0b1318;
+  --bg-card:     #0f1a20;
+  --bg-hover:    #142028;
+  --border:      #1a2d3a;
+  --border-hi:   #254558;
+  --accent:      #00d4ff;
+  --accent2:     #ff6200;
+  --accent3:     #2dff6e;
+  --warn:        #ffc400;
+  --danger:      #ff1a3a;
+  --purple:      #a855f7;
+  --text-1:      #dff0f8;
+  --text-2:      #6a93a8;
+  --text-3:      #2e4d5e;
+  --mono:        'Share Tech Mono', monospace;
+  --disp:        'Barlow Condensed', sans-serif;
+  --body:        'Barlow', sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100vw;height:100vh;overflow:hidden;font-family:var(--body);background:var(--bg-deep);color:var(--text-1);}
+
+/* scanlines */
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.012) 3px,rgba(0,212,255,.012) 4px);pointer-events:none;z-index:9999;}
+
+/* scrollbars */
+::-webkit-scrollbar{width:3px;height:3px;}
+::-webkit-scrollbar-track{background:var(--bg-deep);}
+::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px;}
+::-webkit-scrollbar-thumb:hover{background:var(--accent);}
+
+.screen{display:none;width:100%;height:100vh;}
+.screen.active{display:flex;}
+
+/* ═══════════════════════════════════
+   MENU SCREEN
+═══════════════════════════════════ */
+#menuScreen{
+  flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 15% 50%,#0a2030 0%,var(--bg-deep) 65%);
+  position:relative;overflow:hidden;
+}
+#menuScreen::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 79px,rgba(0,212,255,.03) 79px,rgba(0,212,255,.03) 80px) 0 0/80px 80px,
+             linear-gradient(0deg,transparent 79px,rgba(0,212,255,.03) 79px,rgba(0,212,255,.03) 80px) 0 0/80px 80px;
+  pointer-events:none;
+}
+.m-logo{
+  font-family:var(--disp);font-weight:900;font-size:6.5rem;letter-spacing:-2px;
+  color:var(--accent);text-shadow:0 0 50px rgba(0,212,255,.5),0 0 100px rgba(0,212,255,.2);
+  animation:logoGlow 3s ease-in-out infinite alternate;position:relative;z-index:1;line-height:1;
+}
+.m-logo em{color:var(--accent2);font-style:normal;}
+.m-v{font-family:var(--mono);font-size:.75rem;color:var(--accent2);letter-spacing:3px;position:relative;z-index:1;margin-bottom:6px;}
+.m-tag{font-family:var(--mono);font-size:.78rem;color:var(--text-2);letter-spacing:4px;margin-bottom:50px;position:relative;z-index:1;}
+.m-tag::before{content:'[ ';color:var(--accent);}
+.m-tag::after{content:' ]';color:var(--accent);}
+@keyframes logoGlow{from{text-shadow:0 0 30px rgba(0,212,255,.4),0 0 60px rgba(0,212,255,.15);}to{text-shadow:0 0 60px rgba(0,212,255,.7),0 0 120px rgba(0,212,255,.3);}}
+
+.m-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;max-width:680px;width:90%;position:relative;z-index:1;margin-bottom:14px;}
+.m-grid-wide{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:680px;width:90%;position:relative;z-index:1;margin-bottom:30px;}
+
+.m-btn{
+  background:var(--bg-panel);border:1px solid var(--border);padding:20px 22px;
+  cursor:pointer;font-family:var(--disp);font-weight:600;font-size:1rem;letter-spacing:1px;
+  color:var(--text-1);transition:all .2s;text-align:left;position:relative;overflow:hidden;
+}
+.m-btn::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);transform:scaleY(0);transition:transform .2s;}
+.m-btn:hover{background:var(--bg-hover);border-color:var(--accent);color:var(--accent);}
+.m-btn:hover::before{transform:scaleY(1);}
+.m-btn .bi{font-size:1.6rem;display:block;margin-bottom:6px;}
+.m-btn small{font-family:var(--body);font-weight:300;font-size:.72rem;color:var(--text-2);display:block;margin-top:3px;}
+.m-btn.expert{border-color:rgba(168,85,247,.4);}
+.m-btn.expert::before{background:var(--purple);}
+.m-btn.expert:hover{border-color:var(--purple);color:var(--purple);}
+
+.m-profile{
+  position:relative;z-index:1;display:flex;align-items:center;gap:16px;
+  background:var(--bg-panel);border:1px solid var(--border);padding:12px 22px;
+  max-width:680px;width:90%;
+}
+.m-pname{font-family:var(--disp);font-weight:700;font-size:1.1rem;}
+.m-prole{font-family:var(--mono);font-size:.65rem;color:var(--text-2);margin-top:2px;}
+.stat-chip{font-family:var(--mono);font-size:.62rem;padding:3px 8px;border:1px solid var(--border-hi);color:var(--accent);}
+
+/* ═══════════════════════════════════
+   SCENARIO SELECT
+═══════════════════════════════════ */
+#scScreen{flex-direction:column;background:var(--bg-deep);}
+.topbar{
+  display:flex;align-items:center;gap:16px;padding:10px 22px;
+  background:var(--bg-panel);border-bottom:1px solid var(--border);flex-shrink:0;height:50px;
+}
+.tl{font-family:var(--disp);font-weight:900;font-size:1.4rem;color:var(--accent);letter-spacing:2px;}
+.tl em{color:var(--accent2);font-style:normal;}
+.tbread{font-family:var(--mono);font-size:.68rem;color:var(--text-2);}
+.tbread span{color:var(--accent);}
+.tbright{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.btnsm{font-family:var(--mono);font-size:.65rem;padding:5px 12px;border:1px solid var(--border-hi);background:transparent;color:var(--text-2);cursor:pointer;transition:all .15s;letter-spacing:1px;}
+.btnsm:hover{border-color:var(--accent);color:var(--accent);}
+
+.sc-body{flex:1;overflow-y:auto;padding:24px 36px;}
+.sec-ttl{font-family:var(--disp);font-weight:700;font-size:.75rem;letter-spacing:4px;color:var(--text-2);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.sec-ttl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.eq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:32px;}
+.eq-card{
+  background:var(--bg-panel);border:1px solid var(--border);padding:20px;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.eq-card::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,212,255,.03),transparent 60%);pointer-events:none;}
+.eq-card:hover{border-color:var(--accent);background:var(--bg-hover);}
+.eq-card.sel{border-color:var(--accent);}
+.eq-card.sel::before{content:'✓';position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:.6rem;color:var(--accent3);letter-spacing:2px;}
+.eq-ico{font-size:2.2rem;margin-bottom:10px;}
+.eq-name{font-family:var(--disp);font-weight:700;font-size:1.1rem;margin-bottom:4px;}
+.eq-desc{font-size:.76rem;color:var(--text-2);line-height:1.4;margin-bottom:12px;}
+.eq-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.eq-tag{font-family:var(--mono);font-size:.58rem;padding:2px 7px;border:1px solid var(--border-hi);color:var(--text-2);}
+
+.sc-list{display:grid;gap:8px;margin-bottom:28px;}
+.sc-row{
+  display:grid;grid-template-columns:28px 1fr auto auto auto auto;align-items:center;
+  gap:16px;background:var(--bg-panel);border:1px solid var(--border);
+  padding:13px 18px;cursor:pointer;transition:all .15s;
+}
+.sc-row:hover{border-color:var(--border-hi);background:var(--bg-hover);}
+.sc-row.sel{border-color:var(--accent);}
+.sc-num{font-family:var(--mono);font-size:.7rem;color:var(--text-3);}
+.sc-name{font-family:var(--disp);font-weight:600;font-size:.95rem;}
+.sc-sub{font-family:var(--mono);font-size:.6rem;color:var(--text-3);margin-top:2px;}
+.diff{font-family:var(--mono);font-size:.6rem;padding:2px 9px;border:1px solid;}
+.diff.easy{color:var(--accent3);border-color:var(--accent3);}
+.diff.medium{color:var(--warn);border-color:var(--warn);}
+.diff.hard{color:var(--danger);border-color:var(--danger);}
+.diff.expert{color:var(--purple);border-color:var(--purple);}
+.sc-tag{font-family:var(--mono);font-size:.6rem;color:var(--text-3);}
+
+.mode-row{display:flex;gap:12px;margin-bottom:28px;}
+.mode-btn{
+  flex:1;padding:16px;border:1px solid var(--border);background:var(--bg-panel);
+  cursor:pointer;font-family:var(--disp);font-weight:600;font-size:.95rem;
+  color:var(--text-2);transition:all .15s;text-align:center;
+}
+.mode-btn:hover,.mode-btn.active{border-color:var(--accent);color:var(--accent);background:var(--bg-hover);}
+.mode-btn.expert-mode:hover,.mode-btn.expert-mode.active{border-color:var(--purple);color:var(--purple);}
+.mode-btn small{display:block;font-family:var(--body);font-weight:300;font-size:.68rem;color:var(--text-3);margin-top:3px;}
+
+.launch-bar{
+  display:flex;align-items:center;gap:14px;padding:16px 36px;
+  border-top:1px solid var(--border);background:var(--bg-panel);flex-shrink:0;
+}
+.launch-info{font-family:var(--mono);font-size:.68rem;color:var(--text-2);}
+.launch-info span{color:var(--accent);}
+.btn-launch{
+  margin-left:auto;font-family:var(--disp);font-weight:700;font-size:1rem;
+  letter-spacing:2px;padding:12px 36px;background:var(--accent);color:var(--bg-deep);
+  border:none;cursor:pointer;transition:all .15s;
+}
+.btn-launch:hover{background:#33dfff;box-shadow:0 0 30px rgba(0,212,255,.4);}
+.btn-launch:disabled{background:var(--border);color:var(--text-3);cursor:not-allowed;box-shadow:none;}
+
+/* ═══════════════════════════════════
+   SIMULATOR SCREEN
+═══════════════════════════════════ */
+#simScreen{flex-direction:column;overflow:hidden;}
+
+.sim-top{
+  display:flex;align-items:center;gap:12px;padding:6px 18px;
+  background:var(--bg-panel);border-bottom:1px solid var(--border);flex-shrink:0;height:48px;
+}
+.sim-logo{font-family:var(--disp);font-weight:900;font-size:1.2rem;color:var(--accent);letter-spacing:2px;flex-shrink:0;}
+.sim-logo em{color:var(--accent2);font-style:normal;}
+.sim-scname{font-family:var(--disp);font-weight:600;font-size:.9rem;padding:0 12px;border-left:1px solid var(--border);border-right:1px solid var(--border);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mode-badge{font-family:var(--mono);font-size:.58rem;padding:3px 9px;border:1px solid;letter-spacing:1px;}
+.mode-badge.guided{border-color:var(--accent3);color:var(--accent3);}
+.mode-badge.assessment{border-color:var(--accent2);color:var(--accent2);}
+.mode-badge.expert{border-color:var(--purple);color:var(--purple);}
+
+.health-wrap{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.hlabel{font-family:var(--mono);font-size:.6rem;color:var(--text-2);}
+.htrack{width:130px;height:7px;background:var(--bg-deep);border:1px solid var(--border-hi);overflow:hidden;}
+.hfill{height:100%;transition:width .5s,background .5s;background:var(--accent3);}
+.hval{font-family:var(--mono);font-size:.72rem;width:34px;text-align:right;}
+
+.score-live{display:flex;align-items:center;gap:6px;padding:0 12px;border-left:1px solid var(--border);}
+.score-live-val{font-family:var(--mono);font-size:.85rem;color:var(--accent);}
+.score-live-lbl{font-family:var(--mono);font-size:.55rem;color:var(--text-3);}
+
+.sim-timer{font-family:var(--mono);font-size:.82rem;color:var(--warn);padding:0 12px;border-left:1px solid var(--border);}
+.sim-timer.urgent{color:var(--danger);animation:alarmPulse .6s infinite;}
+
+/* budget bar (expert mode) */
+.budget-bar{
+  display:none;align-items:center;gap:10px;padding:5px 18px;
+  background:rgba(168,85,247,.08);border-bottom:1px solid rgba(168,85,247,.2);flex-shrink:0;
+}
+.budget-bar.visible{display:flex;}
+.budget-lbl{font-family:var(--mono);font-size:.6rem;color:var(--purple);letter-spacing:2px;}
+.budget-track{flex:1;height:6px;background:var(--bg-deep);border:1px solid rgba(168,85,247,.3);overflow:hidden;}
+.budget-fill{height:100%;background:var(--purple);transition:width .5s;}
+.budget-val{font-family:var(--mono);font-size:.68rem;color:var(--purple);}
+
+.alarm-strip{
+  display:none;align-items:center;gap:10px;padding:4px 18px;
+  background:rgba(255,26,58,.1);border-bottom:1px solid rgba(255,26,58,.35);
+  font-family:var(--mono);font-size:.65rem;color:var(--danger);flex-shrink:0;
+  animation:alarmPulse 1s ease infinite;
+}
+.alarm-strip.on{display:flex;}
+@keyframes alarmPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+.adot{width:7px;height:7px;border-radius:50%;background:var(--danger);flex-shrink:0;}
+
+/* sim body */
+.sim-body{flex:1;display:grid;grid-template-columns:300px 1fr 270px;overflow:hidden;}
+
+/* LEFT panel */
+.left-panel{background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.pttl{font-family:var(--disp);font-weight:700;font-size:.72rem;letter-spacing:3px;color:var(--text-2);text-transform:uppercase;}
+.sdot{width:7px;height:7px;border-radius:50%;}
+.sdot.ok{background:var(--accent3);box-shadow:0 0 8px var(--accent3);}
+.sdot.warn{background:var(--warn);box-shadow:0 0 8px var(--warn);}
+.sdot.bad{background:var(--danger);box-shadow:0 0 8px var(--danger);}
+
+/* SVG diagram */
+.diag-wrap{padding:12px;flex-shrink:0;}
+.svg-box{background:var(--bg-deep);border:1px solid var(--border);padding:12px;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
+.svg-box svg{width:100%;height:100%;}
+
+/* component list */
+.comp-scroll{flex:1;overflow-y:auto;padding:8px 12px 12px;}
+.comp-item{
+  display:flex;align-items:center;gap:9px;padding:9px 11px;
+  border:1px solid var(--border);background:var(--bg-card);margin-bottom:5px;
+  cursor:pointer;transition:all .15s;position:relative;
+}
+.comp-item:hover{border-color:var(--border-hi);background:var(--bg-hover);}
+.comp-item.anomaly{border-color:rgba(255,196,0,.3);}
+.comp-item.fault{border-color:rgba(255,26,58,.4);}
+.comp-item.hint-glow{box-shadow:0 0 0 1px var(--accent),0 0 14px rgba(0,212,255,.2);border-color:var(--accent);}
+.comp-item.inspected-ok{border-left:2px solid var(--accent3);}
+.comp-item.inspected-warn{border-left:2px solid var(--warn);}
+.comp-item.inspected-fault{border-left:2px solid var(--danger);}
+.cico{font-size:1rem;flex-shrink:0;}
+.cname{font-family:var(--disp);font-weight:600;font-size:.82rem;flex:1;}
+.cstat{font-family:var(--mono);font-size:.57rem;padding:2px 6px;border:1px solid;}
+.cstat.ok{color:var(--accent3);border-color:var(--accent3);}
+.cstat.warn{color:var(--warn);border-color:var(--warn);}
+.cstat.fault{color:var(--danger);border-color:var(--danger);animation:alarmPulse 1s infinite;}
+.cstat.unk{color:var(--text-3);border-color:var(--text-3);}
+/* noise badge */
+.noise-badge{position:absolute;top:4px;right:4px;font-family:var(--mono);font-size:.52rem;color:var(--warn);opacity:.7;}
+
+/* CENTER panel */
+.center-panel{display:flex;flex-direction:column;overflow:hidden;background:var(--bg-deep);}
+
+.data-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg-panel);flex-shrink:0;overflow-x:auto;}
+.dtab{
+  font-family:var(--mono);font-size:.62rem;letter-spacing:1px;padding:10px 15px;
+  border-right:1px solid var(--border);cursor:pointer;color:var(--text-3);white-space:nowrap;
+  transition:all .15s;border-bottom:2px solid transparent;flex-shrink:0;
+}
+.dtab:hover{color:var(--text-2);}
+.dtab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--bg-deep);}
+.dtab .alert-pip{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--danger);margin-left:5px;vertical-align:middle;}
+
+.data-content{flex:1;overflow-y:auto;padding:16px;}
+
+/* sensor grid */
+.sensor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;}
+.sc{background:var(--bg-panel);border:1px solid var(--border);padding:12px;text-align:center;position:relative;overflow:hidden;}
+.sc.anomaly{border-color:rgba(255,196,0,.45);}
+.sc.danger{border-color:rgba(255,26,58,.55);animation:alarmPulse 1.2s infinite;}
+.sc.nodata{opacity:.45;}
+.sv{font-family:var(--mono);font-size:1.4rem;font-weight:bold;color:var(--accent);line-height:1;margin-bottom:3px;}
+.sv.warn{color:var(--warn);}
+.sv.danger{color:var(--danger);}
+.sv.noise::after{content:'~';font-size:.7rem;color:var(--warn);margin-left:2px;}
+.su{font-family:var(--mono);font-size:.55rem;color:var(--text-3);margin-bottom:5px;}
+.sn{font-family:var(--disp);font-weight:600;font-size:.68rem;color:var(--text-2);letter-spacing:1px;}
+.sbar{margin-top:7px;height:2px;background:var(--bg-deep);overflow:hidden;}
+.sbf{height:100%;transition:width .6s;}
+.slimit{font-family:var(--mono);font-size:.5rem;color:var(--text-3);margin-top:4px;}
+/* false positive indicator */
+.fp-badge{position:absolute;top:3px;right:3px;font-family:var(--mono);font-size:.48rem;color:var(--danger);background:rgba(255,26,58,.1);padding:1px 3px;border:1px solid rgba(255,26,58,.3);}
+
+/* chart cards */
+.chart-card{background:var(--bg-panel);border:1px solid var(--border);margin-bottom:13px;overflow:hidden;}
+.chart-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border);}
+.chart-ttl{font-family:var(--disp);font-weight:600;font-size:.82rem;letter-spacing:.5px;}
+.chart-live{font-family:var(--mono);font-size:.78rem;color:var(--accent);}
+.chart-live.warn{color:var(--warn);}
+.chart-live.danger{color:var(--danger);}
+.chart-actions{display:flex;gap:6px;}
+.ca-btn{font-family:var(--mono);font-size:.55rem;padding:2px 7px;border:1px solid var(--border-hi);background:transparent;color:var(--text-2);cursor:pointer;transition:all .15s;}
+.ca-btn:hover{border-color:var(--accent);color:var(--accent);}
+.chart-body{padding:10px;position:relative;}
+.chart-body canvas{max-height:150px;}
+
+/* alarm log */
+.alarm-log-wrap{display:flex;flex-direction:column;gap:5px;}
+.ale{display:flex;gap:10px;padding:9px 13px;background:var(--bg-panel);border:1px solid var(--border);border-left:3px solid;font-family:var(--mono);font-size:.65rem;}
+.ale.info{border-left-color:var(--accent);}
+.ale.warning{border-left-color:var(--warn);}
+.ale.critical{border-left-color:var(--danger);}
+.ale.false-pos{border-left-color:var(--purple);opacity:.8;}
+.ale-time{color:var(--text-3);flex-shrink:0;width:42px;}
+.ale-code{color:var(--accent);flex-shrink:0;width:90px;}
+.ale-msg{color:var(--text-2);flex:1;}
+.ale-tag{flex-shrink:0;font-size:.5rem;padding:1px 5px;border:1px solid rgba(168,85,247,.4);color:var(--purple);}
+
+/* playback controls */
+.playback-bar{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;
+  border-top:1px solid var(--border);background:var(--bg-panel);flex-shrink:0;
+}
+.pb-btn{font-family:var(--mono);font-size:.65rem;padding:5px 11px;border:1px solid var(--border-hi);background:transparent;color:var(--text-2);cursor:pointer;transition:all .15s;}
+.pb-btn:hover,.pb-btn.active{border-color:var(--accent);color:var(--accent);}
+.pb-track{flex:1;height:4px;background:var(--border);border-radius:2px;cursor:pointer;position:relative;}
+.pb-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;}
+.pb-time{font-family:var(--mono);font-size:.62rem;color:var(--text-2);}
+
+/* health index */
+.health-index{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+.hi-meter{
+  background:var(--bg-panel);border:1px solid var(--border);padding:14px;
+  display:flex;align-items:center;gap:16px;
+}
+.hi-gauge{width:80px;height:80px;flex-shrink:0;}
+.hi-details{flex:1;}
+.hi-title{font-family:var(--disp);font-weight:700;font-size:.95rem;margin-bottom:6px;}
+.hi-sub{font-family:var(--mono);font-size:.65rem;color:var(--text-2);line-height:1.6;}
+.hi-bars{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.hi-bar-row{display:grid;grid-template-columns:120px 1fr 40px;align-items:center;gap:8px;}
+.hi-bar-lbl{font-family:var(--mono);font-size:.6rem;color:var(--text-2);}
+.hi-track{height:4px;background:var(--bg-deep);border:1px solid var(--border);overflow:hidden;}
+.hi-fill{height:100%;transition:width .6s;}
+.hi-pct{font-family:var(--mono);font-size:.6rem;text-align:right;}
+
+/* maint log */
+.maint-list{display:flex;flex-direction:column;gap:7px;}
+.mlog{padding:11px 14px;background:var(--bg-panel);border:1px solid var(--border);}
+.mlog-date{font-family:var(--mono);font-size:.6rem;color:var(--text-3);margin-bottom:3px;}
+.mlog-tech{font-family:var(--mono);font-size:.58rem;color:var(--accent);margin-bottom:4px;}
+.mlog-desc{font-size:.78rem;color:var(--text-2);line-height:1.45;}
+.mlog-flag{font-family:var(--mono);font-size:.58rem;color:var(--danger);margin-top:5px;}
+
+/* lube table */
+.lube-tbl{width:100%;border-collapse:collapse;}
+.lube-tbl th{font-family:var(--mono);font-size:.58rem;letter-spacing:2px;color:var(--text-2);text-align:left;padding:7px 11px;border-bottom:1px solid var(--border);background:var(--bg-panel);}
+.lube-tbl td{font-family:var(--mono);font-size:.68rem;padding:9px 11px;border-bottom:1px solid var(--border);background:var(--bg-card);color:var(--text-2);}
+.lube-tbl td.ok{color:var(--accent3);}
+.lube-tbl td.warn{color:var(--warn);}
+.lube-tbl td.bad{color:var(--danger);}
+
+/* RIGHT panel */
+.right-panel{background:var(--bg-panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.actions-scroll{flex:1;overflow-y:auto;padding:10px;}
+.ag-ttl{font-family:var(--mono);font-size:.57rem;letter-spacing:3px;color:var(--text-3);padding:4px 0;text-transform:uppercase;border-bottom:1px solid var(--border);margin-bottom:5px;}
+.act-btn{
+  width:100%;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text-1);font-family:var(--disp);font-weight:500;font-size:.82rem;
+  cursor:pointer;text-align:left;transition:all .15s;display:flex;align-items:flex-start;gap:9px;margin-bottom:5px;
+}
+.act-btn:hover{border-color:var(--border-hi);background:var(--bg-hover);color:var(--accent);}
+.act-btn:disabled{opacity:.3;cursor:not-allowed;}
+.act-btn .ai{flex-shrink:0;font-size:.9rem;margin-top:1px;}
+.act-btn small{font-family:var(--body);font-weight:300;font-size:.65rem;color:var(--text-3);display:block;margin-top:2px;}
+.act-btn.hl{border-color:rgba(0,212,255,.35);box-shadow:0 0 8px rgba(0,212,255,.08);}
+.act-btn.dbtn{border-color:rgba(255,26,58,.25);}
+.act-btn.dbtn:hover{border-color:var(--danger);color:var(--danger);}
+.act-btn.used{opacity:.5;text-decoration:line-through;}
+
+/* RCA section */
+.rca-section{padding:10px;border-top:1px solid var(--border);}
+.rca-ttl{font-family:var(--mono);font-size:.57rem;letter-spacing:3px;color:var(--text-3);text-transform:uppercase;margin-bottom:7px;}
+.rca-select{width:100%;padding:9px 11px;background:var(--bg-deep);border:1px solid var(--border-hi);color:var(--text-1);font-family:var(--mono);font-size:.68rem;margin-bottom:7px;cursor:pointer;}
+.rca-select:focus{outline:1px solid var(--accent);}
+.btn-submit-diag{
+  width:100%;padding:11px;background:transparent;border:1px solid var(--accent);
+  color:var(--accent);font-family:var(--disp);font-weight:700;font-size:.9rem;letter-spacing:2px;cursor:pointer;transition:all .15s;
+}
+.btn-submit-diag:hover{background:var(--accent);color:var(--bg-deep);}
+.diag-confidence{margin-bottom:7px;}
+.dc-lbl{font-family:var(--mono);font-size:.58rem;color:var(--text-3);margin-bottom:4px;}
+.dc-row{display:flex;gap:6px;}
+.dc-opt{flex:1;padding:5px;border:1px solid var(--border);background:var(--bg-card);font-family:var(--mono);font-size:.6rem;color:var(--text-2);cursor:pointer;text-align:center;transition:all .15s;}
+.dc-opt:hover,.dc-opt.active{border-color:var(--accent);color:var(--accent);}
+
+/* bottom bar */
+.sim-bot{
+  display:flex;align-items:center;gap:10px;padding:8px 18px;
+  background:var(--bg-panel);border-top:1px solid var(--border);flex-shrink:0;height:50px;
+}
+.bs{display:flex;flex-direction:column;align-items:center;padding:0 12px;border-right:1px solid var(--border);}
+.bs:first-child{padding-left:0;}
+.bsv{font-family:var(--mono);font-size:.8rem;color:var(--accent);}
+.bsl{font-family:var(--mono);font-size:.52rem;color:var(--text-3);letter-spacing:1px;text-transform:uppercase;}
+.bot-hint{flex:1;font-size:.74rem;color:var(--text-2);font-style:italic;padding:0 10px;}
+.bot-hint span{color:var(--accent);font-style:normal;font-family:var(--mono);font-size:.67rem;}
+.btn-end{margin-left:auto;font-family:var(--mono);font-size:.62rem;padding:6px 14px;border:1px solid var(--border-hi);background:transparent;color:var(--text-3);cursor:pointer;transition:all .15s;}
+.btn-end:hover{border-color:var(--danger);color:var(--danger);}
+
+/* ═══════════════════════════════════
+   RESULTS SCREEN
+═══════════════════════════════════ */
+#resScreen{
+  flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg-deep);position:relative;overflow-y:auto;
+}
+#resScreen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 20%,rgba(0,212,255,.05),transparent 60%);pointer-events:none;}
+.res-card{
+  background:var(--bg-panel);border:1px solid var(--border);width:750px;max-width:96vw;
+  position:relative;z-index:1;my:30px;
+}
+.res-hdr{padding:22px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.res-title{font-family:var(--disp);font-weight:900;font-size:1.8rem;letter-spacing:1px;}
+.res-grade{font-family:var(--disp);font-weight:900;font-size:3.5rem;line-height:1;}
+.res-body{padding:22px 28px;}
+.score-bars{display:flex;flex-direction:column;gap:11px;margin-bottom:20px;}
+.srow{display:grid;grid-template-columns:180px 1fr 55px;align-items:center;gap:12px;}
+.slbl{font-family:var(--disp);font-weight:600;font-size:.82rem;color:var(--text-2);}
+.strk{height:7px;background:var(--bg-deep);border:1px solid var(--border);overflow:hidden;}
+.sfill{height:100%;transition:width 1.2s ease;}
+.spct{font-family:var(--mono);font-size:.75rem;text-align:right;}
+.res-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:20px;}
+.rst{background:var(--bg-card);border:1px solid var(--border);padding:13px;text-align:center;}
+.rstv{font-family:var(--mono);font-size:1.1rem;color:var(--accent);margin-bottom:3px;}
+.rstl{font-family:var(--body);font-size:.68rem;color:var(--text-3);}
+.res-verdict{font-family:var(--mono);font-size:.72rem;line-height:1.8;color:var(--text-2);background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--accent);padding:13px 16px;margin-bottom:20px;}
+.res-errors{margin-bottom:16px;}
+.re-ttl{font-family:var(--disp);font-weight:700;font-size:.8rem;letter-spacing:2px;color:var(--danger);margin-bottom:8px;}
+.re-item{font-family:var(--mono);font-size:.65rem;color:var(--text-2);padding:7px 11px;border:1px solid var(--border);border-left:2px solid var(--danger);margin-bottom:5px;background:var(--bg-card);}
+.res-ftr{padding:14px 28px;border-top:1px solid var(--border);display:flex;gap:10px;}
+.btn-res{flex:1;padding:11px;font-family:var(--disp);font-weight:600;font-size:.88rem;letter-spacing:1px;cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);transition:all .15s;}
+.btn-res:hover{border-color:var(--accent);color:var(--accent);}
+.btn-res.pri{background:var(--accent);color:var(--bg-deep);border-color:var(--accent);}
+.btn-res.pri:hover{background:#33dfff;}
+
+/* ═══════════════════════════════════
+   MODAL
+═══════════════════════════════════ */
+.moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;}
+.moverlay.open{display:flex;}
+.modal{background:var(--bg-panel);border:1px solid var(--border-hi);width:540px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;animation:mIn .2s ease;}
+@keyframes mIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+.m-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.m-ttl{font-family:var(--disp);font-weight:700;font-size:.95rem;letter-spacing:1px;}
+.m-close{width:26px;height:26px;border:1px solid var(--border);background:transparent;color:var(--text-2);cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.m-close:hover{border-color:var(--danger);color:var(--danger);}
+.m-body{flex:1;overflow-y:auto;padding:18px;}
+.m-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end;}
+.btn-m{padding:8px 20px;font-family:var(--disp);font-weight:600;font-size:.82rem;cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);transition:all .15s;}
+.btn-m:hover{border-color:var(--accent);color:var(--accent);}
+.btn-m.conf{background:var(--accent);color:var(--bg-deep);border-color:var(--accent);}
+.btn-m.conf:hover{background:#33dfff;}
+.btn-m.dang{background:var(--danger);color:white;border-color:var(--danger);}
+.btn-m.warn-btn{background:var(--warn);color:var(--bg-deep);border-color:var(--warn);}
+
+/* inspect report */
+.ir-status{font-family:var(--disp);font-weight:700;font-size:1.05rem;margin-bottom:12px;}
+.ir-status.ok{color:var(--accent3);}
+.ir-status.warn{color:var(--warn);}
+.ir-status.fault{color:var(--danger);}
+.ir-body{font-family:var(--mono);font-size:.72rem;line-height:1.8;color:var(--text-2);}
+.ir-body .ok{color:var(--accent3);}
+.ir-body .warn{color:var(--warn);}
+.ir-body .bad{color:var(--danger);}
+.ir-meas{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.ir-m{background:var(--bg-card);border:1px solid var(--border);padding:10px;text-align:center;}
+.ir-mv{font-family:var(--mono);font-size:1.1rem;color:var(--accent);margin-bottom:2px;}
+.ir-ml{font-family:var(--body);font-size:.68rem;color:var(--text-3);}
+
+/* repair options */
+.repair-opts{display:flex;flex-direction:column;gap:7px;}
+.ropt{padding:13px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer;transition:all .15s;}
+.ropt:hover,.ropt.sel{border-color:var(--accent);background:rgba(0,212,255,.04);}
+.ropt-name{font-family:var(--disp);font-weight:600;font-size:.88rem;margin-bottom:3px;}
+.ropt-meta{font-family:var(--mono);font-size:.62rem;color:var(--text-3);}
+.ropt-meta span{color:var(--warn);}
+.ropt-desc{font-size:.75rem;color:var(--text-2);margin-top:5px;line-height:1.4;}
+
+/* profile form */
+.pf-field{margin-bottom:12px;}
+.pf-field label{display:block;font-family:var(--mono);font-size:.6rem;letter-spacing:2px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;}
+.pf-field input,.pf-field select{width:100%;padding:9px 11px;background:var(--bg-deep);border:1px solid var(--border-hi);color:var(--text-1);font-family:var(--mono);font-size:.75rem;}
+.pf-field input:focus,.pf-field select:focus{outline:1px solid var(--accent);}
+
+/* hint box */
+.hint-box{background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.18);padding:11px 13px;font-size:.74rem;line-height:1.55;color:var(--text-2);margin-bottom:10px;}
+.hint-box strong{color:var(--accent);font-family:var(--mono);}
+
+/* workflow stepper (guided) */
+.workflow{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
+.wstep{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--border);background:var(--bg-card);font-family:var(--mono);font-size:.65rem;color:var(--text-3);}
+.wstep.done{color:var(--accent3);border-color:rgba(45,255,110,.2);}
+.wstep.active{color:var(--text-1);border-color:var(--border-hi);}
+.wstep-num{width:18px;height:18px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:.55rem;flex-shrink:0;}
+.wstep.done .wstep-num{background:var(--accent3);color:var(--bg-deep);}
+.wstep.active .wstep-num{background:var(--accent);color:var(--bg-deep);}
+
+/* toast */
+.toast-wrap{position:fixed;top:58px;right:18px;z-index:9998;display:flex;flex-direction:column;gap:7px;}
+.toast{padding:11px 16px;background:var(--bg-panel);border:1px solid var(--border);border-left:3px solid var(--accent);font-family:var(--mono);font-size:.68rem;color:var(--text-1);animation:tIn .25s ease;max-width:310px;}
+.toast.warn{border-left-color:var(--warn);}
+.toast.danger{border-left-color:var(--danger);}
+.toast.ok{border-left-color:var(--accent3);}
+@keyframes tIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
+
+/* real-time score panel (side) */
+.score-panel{background:var(--bg-card);border:1px solid var(--border);padding:10px 12px;margin-bottom:8px;}
+.sp-ttl{font-family:var(--mono);font-size:.57rem;letter-spacing:3px;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;}
+.sp-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.sp-lbl{font-family:var(--mono);font-size:.6rem;color:var(--text-2);}
+.sp-val{font-family:var(--mono);font-size:.7rem;}
+
+/* cost estimator */
+.cost-est{background:var(--bg-card);border:1px solid var(--border);padding:10px 12px;margin-bottom:8px;}
+.ce-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.65rem;padding:3px 0;border-bottom:1px solid var(--border);color:var(--text-2);}
+.ce-total{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.72rem;padding:6px 0;color:var(--accent);}
+
+/* secondary fault warning */
+.sec-fault-warn{
+  background:rgba(255,98,0,.08);border:1px solid rgba(255,98,0,.35);
+  padding:9px 12px;font-family:var(--mono);font-size:.65rem;color:var(--accent2);
+  margin-bottom:8px;display:none;
+}
+.sec-fault-warn.show{display:block;}
+
+/* intermittent indicator */
+@keyframes flicker{0%,100%{opacity:1;}45%{opacity:.3;}55%{opacity:.3;}}
+.intermittent{animation:flicker 3s ease infinite;}
+</style>
+</head>
+<body>
+<div class="toast-wrap" id="toastWrap"></div>
+<div class="moverlay" id="moverlay"><div class="modal" id="modal">
+  <div class="m-hdr"><div class="m-ttl" id="mttl"></div><button class="m-close" onclick="closeModal()">✕</button></div>
+  <div class="m-body" id="mbody"></div>
+  <div class="m-ftr" id="mftr"></div>
+</div></div>
+
+<!-- ═══ MENU ═══ -->
+<div id="menuScreen" class="screen active">
+  <div class="m-v">VERSION 2.0 — ENHANCED ENGINE</div>
+  <div class="m-logo">DIAGNO<em>STIX</em></div>
+  <div class="m-tag">INDUSTRIAL MAINTENANCE TRAINING SIMULATOR</div>
+  <div class="m-grid">
+    <button class="m-btn" onclick="goTo('scScreen');selectMode('guided')">
+      <span class="bi">🎓</span>GUIDED MODE<small>Step-by-step hints &amp; workflow</small>
+    </button>
+    <button class="m-btn" onclick="goTo('scScreen');selectMode('assessment')">
+      <span class="bi">📋</span>ASSESSMENT<small>Timed, no hints, graded</small>
+    </button>
+    <button class="m-btn expert" onclick="goTo('scScreen');selectMode('expert')">
+      <span class="bi">⚡</span>EXPERT MODE<small>Multi-fault, budget &amp; time pressure</small>
+    </button>
+  </div>
+  <div class="m-grid-wide">
+    <button class="m-btn" onclick="openProfileModal()"><span class="bi">👤</span>PROFILE &amp; HISTORY<small>View stats, rank, session log</small></button>
+    <button class="m-btn" onclick="showHelp()"><span class="bi">📖</span>GUIDE &amp; SCORING<small>How to use Diagnostix</small></button>
+  </div>
+  <div class="m-profile">
+    <div><div class="m-pname" id="mPname">TECHNICIAN</div><div class="m-prole" id="mProle">Maintenance Technician</div></div>
+    <div style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap">
+      <div class="stat-chip">SESSIONS: <span id="sSess">0</span></div>
+      <div class="stat-chip">AVG: <span id="sAvg">—</span></div>
+      <div class="stat-chip">RANK: <span id="sRank">RECRUIT</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCENARIO SELECT ═══ -->
+<div id="scScreen" class="screen" style="flex-direction:column">
+  <div class="topbar">
+    <div class="tl">DIAGNO<em>STIX</em></div>
+    <div class="tbread">// <span>SCENARIO SELECT</span></div>
+    <div class="tbright">
+      <button class="btnsm" onclick="goTo('menuScreen')">← MENU</button>
+    </div>
+  </div>
+  <div class="sc-body">
+    <div class="sec-ttl">01 — EQUIPMENT TYPE</div>
+    <div class="eq-grid" id="eqGrid"></div>
+    <div class="sec-ttl">02 — FAILURE SCENARIO</div>
+    <div class="sc-list" id="scList"></div>
+    <div class="sec-ttl">03 — TRAINING MODE</div>
+    <div class="mode-row">
+      <div class="mode-btn" id="mb-guided" onclick="selectMode('guided')">GUIDED<small>Hints · Workflow · No time limit</small></div>
+      <div class="mode-btn" id="mb-assessment" onclick="selectMode('assessment')">ASSESSMENT<small>Timed · No hints · Graded</small></div>
+      <div class="mode-btn expert-mode" id="mb-expert" onclick="selectMode('expert')">EXPERT<small>Multi-fault · Budget · Pressure</small></div>
+    </div>
+  </div>
+  <div class="launch-bar">
+    <div class="launch-info">EQ: <span id="liEq">—</span> &nbsp;|&nbsp; SCENARIO: <span id="liSc">—</span> &nbsp;|&nbsp; MODE: <span id="liMode">—</span> &nbsp;|&nbsp; FAULTS: <span id="liFaults">—</span></div>
+    <button class="btn-launch" id="btnLaunch" onclick="launchSim()" disabled>LAUNCH SIMULATION →</button>
+  </div>
+</div>
+
+<!-- ═══ SIMULATOR ═══ -->
+<div id="simScreen" class="screen">
+  <div class="sim-top">
+    <div class="sim-logo">DIAGNO<em>STIX</em></div>
+    <div class="sim-scname" id="simName">—</div>
+    <div class="mode-badge" id="simBadge">—</div>
+    <div class="health-wrap">
+      <div class="hlabel">EQ HEALTH</div>
+      <div class="htrack"><div class="hfill" id="hBar" style="width:100%"></div></div>
+      <div class="hval" id="hVal">100%</div>
+    </div>
+    <div class="score-live">
+      <div><div class="score-live-val" id="liveScore">—</div><div class="score-live-lbl">SCORE</div></div>
+    </div>
+    <div class="sim-timer" id="simTimer">00:00</div>
+    <button class="btnsm" onclick="confirmAbort()" style="margin-left:6px">ABORT</button>
+  </div>
+  <div class="budget-bar" id="budgetBar">
+    <div class="budget-lbl">BUDGET</div>
+    <div class="budget-track"><div class="budget-fill" id="budgetFill" style="width:100%"></div></div>
+    <div class="budget-val" id="budgetVal">$50,000 remaining</div>
+  </div>
+  <div class="alarm-strip" id="alarmStrip">
+    <div class="adot"></div><span id="alarmTxt">CRITICAL ALARM</span>
+  </div>
+  <div class="sim-body">
+    <!-- LEFT -->
+    <div class="left-panel">
+      <div class="panel-hdr"><div class="pttl">EQUIPMENT</div><div class="sdot ok" id="eqDot"></div></div>
+      <div class="diag-wrap"><div class="svg-box" id="svgBox"></div></div>
+      <div class="panel-hdr"><div class="pttl">COMPONENTS</div></div>
+      <div class="comp-scroll" id="compList"></div>
+    </div>
+    <!-- CENTER -->
+    <div class="center-panel">
+      <div class="data-tabs" id="dataTabs"></div>
+      <div class="data-content" id="dataContent"></div>
+      <div class="playback-bar" id="playbackBar" style="display:none">
+        <button class="pb-btn active" id="pbPlay" onclick="togglePlayback()">▶ PLAY</button>
+        <div class="pb-track" onclick="seekTimeline(event)"><div class="pb-fill" id="pbFill" style="width:0%"></div></div>
+        <div class="pb-time" id="pbTime">T+0h</div>
+      </div>
+    </div>
+    <!-- RIGHT -->
+    <div class="right-panel">
+      <div class="panel-hdr"><div class="pttl">ACTIONS &amp; TOOLS</div></div>
+      <div class="actions-scroll" id="actPanel"></div>
+      <div class="rca-section">
+        <div class="rca-ttl">ROOT CAUSE ANALYSIS</div>
+        <select class="rca-select" id="rcaSelect"><option value="">— Select Root Cause —</option></select>
+        <div class="diag-confidence">
+          <div class="dc-lbl">CONFIDENCE LEVEL</div>
+          <div class="dc-row">
+            <div class="dc-opt" data-conf="low" onclick="setConfidence(this)">LOW</div>
+            <div class="dc-opt" data-conf="medium" onclick="setConfidence(this)">MEDIUM</div>
+            <div class="dc-opt active" data-conf="high" onclick="setConfidence(this)">HIGH</div>
+          </div>
+        </div>
+        <button class="btn-submit-diag" onclick="submitDiag()">SUBMIT DIAGNOSIS ▶</button>
+      </div>
+    </div>
+  </div>
+  <div class="sim-bot">
+    <div class="bs"><div class="bsv" id="bbAct">0</div><div class="bsl">ACTIONS</div></div>
+    <div class="bs"><div class="bsv" id="bbCost">$0</div><div class="bsl">COST</div></div>
+    <div class="bs"><div class="bsv" id="bbDT">0h</div><div class="bsl">DOWNTIME</div></div>
+    <div class="bs"><div class="bsv" id="bbSafe" style="color:var(--accent3)">100</div><div class="bsl">SAFETY</div></div>
+    <div class="bot-hint" id="botHint"></div>
+    <button class="btn-end" onclick="confirmAbort()">END SESSION</button>
+  </div>
+</div>
+
+<!-- ═══ RESULTS ═══ -->
+<div id="resScreen" class="screen" style="flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;padding:20px;">
+  <div class="res-card">
+    <div class="res-hdr">
+      <div>
+        <div style="font-family:var(--mono);font-size:.62rem;color:var(--text-3);letter-spacing:3px;margin-bottom:5px">SESSION COMPLETE</div>
+        <div class="res-title" id="resTitle">DIAGNOSTIC REPORT</div>
+        <div style="font-family:var(--mono);font-size:.68rem;color:var(--text-2);margin-top:4px" id="resSubtitle"></div>
+      </div>
+      <div class="res-grade" id="resGrade">A</div>
+    </div>
+    <div class="res-body">
+      <div class="score-bars" id="scoreBars"></div>
+      <div class="res-stats" id="resStats"></div>
+      <div class="res-verdict" id="resVerdict"></div>
+      <div class="res-errors" id="resErrors"></div>
+    </div>
+    <div class="res-ftr">
+      <button class="btn-res" onclick="goTo('scScreen')">RETRY</button>
+      <button class="btn-res" onclick="goTo('menuScreen')">MENU</button>
+      <button class="btn-res pri" onclick="nextScenario()">NEXT SCENARIO →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   DIAGNOSTIX v2 — SCENARIO RULE ENGINE
+   Full dynamic fault generation, multi-fault, sensor noise,
+   false positives, intermittent faults, playback, scoring
+═══════════════════════════════════════════════════════════════ */
+
+// ─── PROFILE ───────────────────────────────────────────────
+const P = {
+  load(){ return JSON.parse(localStorage.getItem('dx2_profile')||'{"name":"TECHNICIAN","role":"Maintenance Technician","sessions":0,"scores":[],"history":[]}'); },
+  save(d){ localStorage.setItem('dx2_profile',JSON.stringify(d)); },
+  update(){
+    const p=P.load();
+    $('mPname').textContent=p.name.toUpperCase();
+    $('mProle').textContent='Role: '+p.role;
+    $('sSess').textContent=p.sessions;
+    const avg=p.scores.length?Math.round(p.scores.reduce((a,b)=>a+b,0)/p.scores.length):null;
+    $('sAvg').textContent=avg?avg+'%':'—';
+    const ranks=[[0,'RECRUIT'],[3,'TECHNICIAN'],[7,'SPECIALIST'],[12,'EXPERT'],[20,'MASTER TECH'],[30,'LEGEND']];
+    let rank='RECRUIT'; for(const[n,r]of ranks){if(p.sessions>=n)rank=r;}
+    $('sRank').textContent=rank;
+  }
+};
+
+// ─── HELPERS ───────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+const rnd=(min,max)=>+(Math.random()*(max-min)+min).toFixed(2);
+const rndInt=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+const clamp=(v,mn,mx)=>Math.max(mn,Math.min(mx,v));
+
+// ─── STATE ─────────────────────────────────────────────────
+const S = {
+  eq:null, scId:null, mode:'guided',
+  scenario:null,
+  health:100, safetyScore:100,
+  actions:0, totalCost:0, downtime:0,
+  budget:50000, budgetMax:50000,
+  timerSec:0, timeLimit:0,
+  diagSubmitted:false, diagCorrect:false,
+  repairApplied:false, repairCorrect:false,
+  confidence:'high',
+  inspected:new Set(), testsRun:new Set(),
+  errors:[],
+  secondaryTriggered:false,
+  playbackTime:0, playbackPlaying:false, playbackInterval:null,
+  timerInterval:null, healthInterval:null, noiseTick:null,
+  charts:{}, activeTab:'sensors',
+  alarmLog:[],
+  workflowStep:0,
+  // dynamic sensor override (for noise/intermittent)
+  sensorNoise:{},
+  falsePositives:new Set(),
+  missingData:new Set(),
+  intermittentFault:null,
+};
+
+// ─── EQUIPMENT CATALOG ─────────────────────────────────────
+const EQUIPMENT = [
+  { id:'pump',      name:'Centrifugal Pump',     icon:'🔧', desc:'API 610 process pump, 45kW, 1480 RPM, 320m³/h',  tags:['45 kW','1480 RPM','API 610','DN250'] },
+  { id:'gearbox',   name:'Parallel Gearbox',     icon:'⚙️', desc:'Helical parallel gearbox, ratio 8.5:1, 220kW',  tags:['220 kW','8.5:1 RATIO','ISO 6336','Class 8'] },
+  { id:'motor',     name:'Induction Motor',      icon:'⚡', desc:'11kV HV induction motor, 1.5MW, 2-pole, IP55',  tags:['1.5 MW','11 kV','2-POLE','IP55'] },
+  { id:'conveyor',  name:'Conveyor Belt System', icon:'📦', desc:'CEMA D, 180m, 2.4m wide, 75kW drive',          tags:['75 kW','2.4m BELT','180m','CEMA D'] },
+  { id:'hydraulic', name:'Hydraulic Power Unit', icon:'🛢️', desc:'Variable displacement HPU, 350 bar max, 55kW',  tags:['55 kW','350 BAR','VD PUMP','ISO 46'] },
+];
+
+// ─── FAULT CATALOG ─────────────────────────────────────────
+const FAULTS = {
+  pump:[
+    { id:'cavitation',    name:'Cavitation — Suction Starvation',     diff:'medium', time:12,
+      sensors:{flow:{base:190,bad:150,unit:'m³/h',norm:[250,320]},suct_press:{base:0.3,bad:0.1,unit:'bar',norm:[1.2,3.0]},vib:{base:5.2,bad:8.1,unit:'mm/s',norm:[0,7]},temp:{base:55,bad:60,unit:'°C',norm:[35,70]},current:{base:74,bad:68,unit:'A',norm:[70,90]},npsh:{base:1.1,bad:0.4,unit:'m',norm:[2.5,8]}},
+      correctDiag:'cavitation', correctRepair:'clear_suction', secondaryFault:'impeller_damage',
+      fftProfile:[0.3,1.2,0.4,0.5,0.2,0.2,0.2,5.8,3.1],
+      symptoms:['Erratic flow output','Crackling/popping noise from casing','Suction pressure critically low','Broadband noise elevation'],
+      hint:'Low suction pressure and broadband vibration (sub-synchronous noise) are classic cavitation signs. Check suction pressure and NPSH available.',
+      guidedHL:['impeller','suction_valve'], workflow:['Check flow sensor','Verify suction pressure','Inspect suction strainer','Inspect impeller','Run vibration analysis'] },
+
+    { id:'bearing_wear',  name:'Drive End Bearing Wear',             diff:'medium', time:15,
+      sensors:{temp_bearing:{base:94,bad:115,unit:'°C',norm:[35,70]},vib_de:{base:12.4,bad:18,unit:'mm/s',norm:[0,7]},vib_nde:{base:3.1,bad:4,unit:'mm/s',norm:[0,7]},current:{base:82,bad:85,unit:'A',norm:[70,90]},flow:{base:298,bad:290,unit:'m³/h',norm:[250,320]}},
+      correctDiag:'bearing_failure', correctRepair:'replace_bearing_de', secondaryFault:'seal_leak_secondary',
+      fftProfile:[0.3,1.8,0.4,0.5,5.2,1.4,0.9,0.3,2.8],
+      symptoms:['DE bearing temperature escalating','BPFO frequency peak in spectrum','High-frequency noise','Metal particles in lubricant'],
+      hint:'BPFO frequency peak and rising bearing temperature with metal particle increase indicate rolling element bearing failure.',
+      guidedHL:['de_bearing'], workflow:['Inspect DE bearing','Review alarm log','Check lubrication report','Run vibration FFT','Review temperature trend'] },
+
+    { id:'shaft_misalign',name:'Shaft/Coupling Misalignment',        diff:'hard', time:20,
+      sensors:{vib_de:{base:9.8,bad:14,unit:'mm/s',norm:[0,7]},vib_nde:{base:8.1,bad:12,unit:'mm/s',norm:[0,7]},temp_bearing:{base:72,bad:82,unit:'°C',norm:[35,70]},current:{base:89,bad:92,unit:'A',norm:[70,90]},flow:{base:310,bad:305,unit:'m³/h',norm:[250,320]}},
+      correctDiag:'misalignment', correctRepair:'laser_align', secondaryFault:'coupling_failure',
+      fftProfile:[0.4,5.1,0.3,4.8,0.2,0.3,0.2,0.1,0.2],
+      symptoms:['High 1x and 2x frequency in spectrum','Both bearings elevated simultaneously','Coupling wear asymmetric','Recent coupling replacement'],
+      hint:'1x and 2x dominant frequencies with both DE and NDE bearings elevated suggests misalignment not bearing fault.',
+      guidedHL:['coupling','de_bearing','nde_bearing'], workflow:['Inspect coupling','Check vibration spectrum','Review maintenance log','Run alignment check'] },
+
+    { id:'impeller_damage',name:'Impeller Erosion/Damage',           diff:'hard', time:18,
+      sensors:{flow:{base:220,bad:170,unit:'m³/h',norm:[250,320]},vib:{base:6.8,bad:9.4,unit:'mm/s',norm:[0,7]},current:{base:76,bad:70,unit:'A',norm:[70,90]},efficiency:{base:58,bad:42,unit:'%',norm:[72,85]},temp:{base:58,bad:62,unit:'°C',norm:[35,70]}},
+      correctDiag:'impeller_damage', correctRepair:'replace_impeller', secondaryFault:null,
+      fftProfile:[0.3,1.1,2.8,0.7,0.3,0.2,0.3,0.2,0.2],
+      symptoms:['Reduced flow rate','Low pump efficiency','Increased noise at BEP','Pitting marks visible on blades'],
+      hint:'Reduced efficiency and flow with elevated broadband noise suggests impeller wear or cavitation damage.',
+      guidedHL:['impeller'], workflow:['Review flow trend','Check efficiency calculation','Inspect impeller','Check for prior cavitation events'] },
+
+    { id:'blocked_suction',name:'Blocked Suction Strainer',          diff:'easy', time:10,
+      sensors:{flow:{base:140,bad:80,unit:'m³/h',norm:[250,320]},suct_press:{base:0.2,bad:-0.1,unit:'bar',norm:[1.2,3.0]},current:{base:68,bad:60,unit:'A',norm:[70,90]},vib:{base:3.1,bad:4.2,unit:'mm/s',norm:[0,7]}},
+      correctDiag:'blocked_suction', correctRepair:'clean_strainer', secondaryFault:'cavitation',
+      fftProfile:[0.2,0.8,0.3,0.3,0.1,0.1,0.2,1.2,0.8],
+      symptoms:['Severely reduced flow','Suction pressure near vacuum','Motor running light (low current)','Pump noise changing'],
+      hint:'Vacuum suction pressure with low flow and low current means the pump is starved of fluid. Check the suction strainer.',
+      guidedHL:['suction_valve','strainer'], workflow:['Check suction pressure','Inspect strainer','Verify inlet valve open','Check flow rate'] },
+
+    { id:'seal_leak',     name:'Mechanical Seal Failure',            diff:'easy', time:8,
+      sensors:{leak_rate:{base:22,bad:45,unit:'drops/min',norm:[0,10]},temp:{base:48,bad:52,unit:'°C',norm:[35,70]},vib:{base:3.8,bad:4.0,unit:'mm/s',norm:[0,7]},current:{base:80,bad:80,unit:'A',norm:[70,90]},flow:{base:285,bad:278,unit:'m³/h',norm:[250,320]}},
+      correctDiag:'seal_failure', correctRepair:'replace_seal', secondaryFault:null,
+      fftProfile:[0.2,1.0,0.3,0.3,0.1,0.1,0.2,0.2,0.2],
+      symptoms:['Visible leakage at stuffing box','Environmental contamination risk','HSE notification triggered','No vibration anomaly'],
+      hint:'Visible heavy leakage with no vibration anomaly points directly to mechanical seal failure.',
+      guidedHL:['seal'], workflow:['Inspect seal area','Measure leakage rate','Review HSE protocols','Confirm repair scope'] },
+
+    { id:'vib_resonance', name:'Structural Resonance / Unbalance',   diff:'hard', time:22,
+      sensors:{vib_de:{base:14.2,bad:20,unit:'mm/s',norm:[0,7]},vib_frame:{base:11.8,bad:16,unit:'mm/s',norm:[0,5]},temp_bearing:{base:65,bad:78,unit:'°C',norm:[35,70]},current:{base:83,bad:84,unit:'A',norm:[70,90]}},
+      correctDiag:'resonance_unbalance', correctRepair:'balance_correct', secondaryFault:'bearing_wear',
+      fftProfile:[0.2,12.4,0.3,1.2,0.2,0.3,0.2,0.1,0.2],
+      symptoms:['1x dominant very high amplitude','Frame vibration excessive','Bolts loosening','Phase-locked vibration'],
+      hint:'Dominant 1x with high frame vibration and bolt loosening suggests rotor unbalance or structural resonance at running speed.',
+      guidedHL:['rotor','baseplate'], workflow:['Measure 1x amplitude and phase','Check baseplate bolts','Run coast-down test','Perform dynamic balance analysis'] },
+
+    { id:'pump_dry_run',  name:'Pump Dry Run — Loss of Prime',        diff:'medium', time:14,
+      sensors:{temp:{base:88,bad:130,unit:'°C',norm:[35,70]},flow:{base:0,bad:0,unit:'m³/h',norm:[250,320]},current:{base:45,bad:38,unit:'A',norm:[70,90]},vib:{base:9.2,bad:14,unit:'mm/s',norm:[0,7]},suct_press:{base:0.0,bad:-0.2,unit:'bar',norm:[1.2,3.0]}},
+      correctDiag:'dry_run', correctRepair:'prime_restart', secondaryFault:'bearing_wear',
+      fftProfile:[0.2,0.6,0.4,0.3,0.5,0.8,1.2,2.1,1.4],
+      symptoms:['Zero flow output','Pump casing very hot','Current lower than normal','Suction completely dry'],
+      hint:'Zero flow, very low current and very high casing temperature = pump running dry. Immediate shutdown required.',
+      guidedHL:['impeller','seal'], workflow:['Verify flow = 0','Check suction level','STOP PUMP','Find cause of lost prime','Re-prime before restart'] },
+  ],
+
+  gearbox:[
+    { id:'gear_pitting',  name:'Gear Tooth Pitting / Spalling',      diff:'hard', time:25,
+      sensors:{vib_gb:{base:8.4,bad:14.2,unit:'mm/s',norm:[0,6]},temp_gb:{base:88,bad:105,unit:'°C',norm:[40,85]},oil_fe:{base:220,bad:480,unit:'ppm Fe',norm:[0,100]},noise_db:{base:82,bad:92,unit:'dB(A)',norm:[60,85]},current:{base:88,bad:94,unit:'A',norm:[70,95]}},
+      correctDiag:'gear_pitting', correctRepair:'gearbox_overhaul', secondaryFault:'lube_contamination',
+      fftProfile:[0.3,1.2,0.4,0.5,8.4,2.1,0.8,0.4,1.2],
+      symptoms:['GMF sidebands in spectrum','Elevated metal particles (Fe/Cr)','Gearbox running hot','Clicking/grinding at meshing frequency'],
+      hint:'Gear mesh frequency (GMF) sidebands with high Fe particle count indicate gear surface fatigue pitting.',
+      guidedHL:['gears','oil_filter'], workflow:['Check oil sample (Fe ppm)','Run vibration FFT at GMF','Inspect magnetic drain plug','Review load history'] },
+
+    { id:'bearing_cage',  name:'Bearing Cage Failure',               diff:'expert', time:30,
+      sensors:{vib_gb:{base:9.1,bad:16.2,unit:'mm/s',norm:[0,6]},temp_gb:{base:92,bad:118,unit:'°C',norm:[40,85]},oil_fe:{base:180,bad:380,unit:'ppm Fe',norm:[0,100]},speed_var:{base:0.8,bad:2.4,unit:'% variation',norm:[0,0.5]}},
+      correctDiag:'bearing_cage', correctRepair:'replace_bearing_gb', secondaryFault:'gear_pitting',
+      fftProfile:[0.3,0.8,0.4,0.5,0.8,4.2,5.1,2.4,1.8],
+      symptoms:['FTF and BSF sidebands','Irregular vibration bursts','Speed variation detected','High copper content in oil'],
+      hint:'FTF and BSF peaks with irregular burst patterns and copper in oil (cage material) indicate bearing cage failure.',
+      guidedHL:['output_bearing'], workflow:['Analyse FFT for FTF/BSF','Check copper in oil sample','Monitor speed variation','Check bearing clearance'] },
+
+    { id:'lube_starve',   name:'Lubrication Starvation',             diff:'medium', time:16,
+      sensors:{temp_gb:{base:112,bad:138,unit:'°C',norm:[40,85]},oil_press:{base:0.4,bad:0.1,unit:'bar',norm:[1.5,4.0]},oil_level:{base:30,bad:10,unit:'%',norm:[50,100]},vib_gb:{base:7.2,bad:11.4,unit:'mm/s',norm:[0,6]}},
+      correctDiag:'lube_starvation', correctRepair:'refill_flush_oil', secondaryFault:'gear_pitting',
+      fftProfile:[0.4,1.8,0.5,0.6,1.2,0.8,0.5,0.3,0.2],
+      symptoms:['Very high gearbox temperature','Low oil pressure alarm','Oil level critically low','Whining noise changing with temperature'],
+      hint:'High temperature + low oil pressure + low level = immediate lubrication starvation. Stop and investigate before further damage.',
+      guidedHL:['oil_sump','oil_pump'], workflow:['Check oil level','Check oil pressure','Inspect oil pump','Sample oil for contamination','Stop if level <20%'] },
+
+    { id:'shaft_misalign_gb',name:'Input Shaft Misalignment',         diff:'hard', time:20,
+      sensors:{vib_gb:{base:10.2,bad:15.8,unit:'mm/s',norm:[0,6]},vib_input:{base:9.4,bad:13.2,unit:'mm/s',norm:[0,5]},temp_input_brg:{base:78,bad:95,unit:'°C',norm:[40,85]},current:{base:92,bad:96,unit:'A',norm:[70,95]}},
+      correctDiag:'misalignment_gb', correctRepair:'realign_gearbox', secondaryFault:'coupling_failure',
+      fftProfile:[0.3,6.2,0.4,5.8,0.3,0.4,0.2,0.1,0.2],
+      symptoms:['1x and 2x dominant','Input bearing heated','Coupling insert asymmetric wear','Vibration phase-split axially'],
+      hint:'Dominant 1x and 2x with input bearing heating and coupling wear confirms misalignment at gearbox input.',
+      guidedHL:['input_shaft','coupling_gb'], workflow:['Measure alignment','Inspect coupling','Check foundation bolts','Soft-foot check'] },
+
+    { id:'backlash_growth',name:'Backlash Growth / Gear Wear',        diff:'expert', time:28,
+      sensors:{noise_db:{base:88,bad:98,unit:'dB(A)',norm:[60,85]},vib_gb:{base:7.4,bad:11.8,unit:'mm/s',norm:[0,6]},speed_var:{base:1.2,bad:3.8,unit:'% variation',norm:[0,0.5]},oil_fe:{base:160,bad:320,unit:'ppm Fe',norm:[0,100]}},
+      correctDiag:'backlash_wear', correctRepair:'gear_replacement', secondaryFault:'bearing_cage',
+      fftProfile:[0.2,0.8,0.4,0.6,3.2,1.8,0.8,4.1,2.4],
+      symptoms:['Increased backlash measured','Knocking at gear change/reversal','High iron in oil','Speed regulation poor'],
+      hint:'Backlash > 3× design with speed variation and elevated iron = advanced gear tooth wear needing replacement.',
+      guidedHL:['gears'], workflow:['Measure backlash','Run oil analysis','Inspect gear tooth profile','Review load cycles'] },
+  ],
+
+  motor:[
+    { id:'elec_imbalance', name:'Phase Current Imbalance',           diff:'medium', time:18,
+      sensors:{curr_a:{base:92,bad:98,unit:'A',norm:[70,90]},curr_b:{base:85,bad:85,unit:'A',norm:[70,90]},curr_c:{base:78,bad:72,unit:'A',norm:[70,90]},winding_temp:{base:148,unit:'°C',norm:[0,155]},ir_ph_a:{base:150,bad:80,unit:'MΩ',norm:[500,9999]}},
+      correctDiag:'phase_imbalance', correctRepair:'motor_rewind', secondaryFault:'bearing_heat_motor',
+      fftProfile:[0.3,1.2,0.4,0.5,0.2,0.3,0.2,0.1,0.2],
+      symptoms:['Phase A current 15% above average','Thermal overload trips intermittently','Winding temperature near Class F limit','IR test Phase A degraded'],
+      hint:'Current imbalance >5% with degraded Phase A insulation resistance indicates winding fault. Stop motor for full electrical test.',
+      guidedHL:['windings_a'], workflow:['Measure all 3 phase currents','Run IR test on all phases','Check supply voltage balance','Review thermal history'] },
+
+    { id:'winding_insulation',name:'Winding Insulation Breakdown',   diff:'hard', time:22,
+      sensors:{ir_phase:{base:45,bad:8,unit:'MΩ',norm:[500,9999]},pi_ratio:{base:1.2,bad:0.9,unit:'PI',norm:[2.0,9]},winding_temp:{base:162,bad:175,unit:'°C',norm:[0,155]},current:{base:94,bad:102,unit:'A',norm:[70,90]}},
+      correctDiag:'insulation_failure', correctRepair:'motor_replace', secondaryFault:null,
+      fftProfile:[0.2,1.4,0.3,0.4,0.2,0.2,0.1,0.1,0.1],
+      symptoms:['IR < 100 MΩ (dangerous)','Polarisation Index < 1.0','Winding temperature above Class F','Earth fault relay operated'],
+      hint:'IR below 100 MΩ and PI < 1.0 indicate imminent insulation breakdown. Motor must NOT be re-energised.',
+      guidedHL:['windings_all'], workflow:['Measure IR all phases to earth','Calculate PI ratio','Check earth fault relay','LOCK OUT motor'] },
+
+    { id:'rotor_bar_crack',name:'Rotor Bar Crack',                   diff:'expert', time:30,
+      sensors:{curr_mod:{base:3.2,bad:6.8,unit:'% mod',norm:[0,1]},slip_freq:{base:0.8,bad:2.1,unit:'Hz sidebands',norm:[0,0.3]},torque_rip:{base:4.2,bad:9.8,unit:'%',norm:[0,3]},vib:{base:5.8,bad:8.4,unit:'mm/s',norm:[0,7]}},
+      correctDiag:'rotor_bar', correctRepair:'rotor_rewind', secondaryFault:'bearing_heat_motor',
+      fftProfile:[0.2,1.0,0.3,0.4,0.2,0.5,1.8,3.2,1.4],
+      symptoms:['Slip-frequency sidebands (1x±2sf)','Current modulation detected','Torque ripple elevated','Vibration at twice slip frequency'],
+      hint:'(1x ± 2sf) sideband pattern in current spectrum is the diagnostic signature of rotor bar cracks.',
+      guidedHL:['rotor_cage'], workflow:['Run Motor Current Signature Analysis','Measure slip frequency','Check startup current pattern','Trend over time'] },
+
+    { id:'bearing_heat_motor',name:'Motor Bearing Overheating',      diff:'medium', time:15,
+      sensors:{temp_de_motor:{base:98,bad:128,unit:'°C',norm:[35,80]},vib_motor:{base:9.2,bad:14.4,unit:'mm/s',norm:[0,7]},ir_lube:{base:72,bad:30,unit:'cSt',norm:[60,100]},current:{base:82,bad:83,unit:'A',norm:[70,90]}},
+      correctDiag:'motor_bearing', correctRepair:'replace_motor_bearing', secondaryFault:'winding_insulation',
+      fftProfile:[0.3,1.6,0.4,0.5,4.8,1.2,0.7,0.3,2.1],
+      symptoms:['DE bearing temperature rising','BPFO peak in vibration spectrum','Grease degraded','High-pitched squeal from bearing end'],
+      hint:'BPFO peak with temperature rise at motor DE bearing. Check grease condition and replace bearing.',
+      guidedHL:['motor_bearing_de'], workflow:['Inspect motor DE bearing','Run vibration FFT','Check grease condition','Review motor temperature trend'] },
+
+    { id:'freq_resonance_motor',name:'Frequency Resonance / Harmonics',diff:'expert', time:32,
+      sensors:{vib_motor:{base:12.8,bad:18.4,unit:'mm/s',norm:[0,7]},vib_frame:{base:10.2,bad:15.8,unit:'mm/s',norm:[0,5]},curr_thd:{base:8.2,bad:14.8,unit:'% THD',norm:[0,5]},temp:{base:78,bad:92,unit:'°C',norm:[35,80]}},
+      correctDiag:'electrical_resonance', correctRepair:'harmonic_filter', secondaryFault:'winding_insulation',
+      fftProfile:[0.3,2.1,0.4,4.8,0.2,0.3,3.2,0.2,1.4],
+      symptoms:['High harmonic content (5th/7th)','Frame vibration at electrical frequency','Capacitor bank heating','VFD generated harmonics'],
+      hint:'High THD with frame vibration at electrical harmonic frequency. Check VFD settings and supply harmonics.',
+      guidedHL:['vfd','capacitor_bank'], workflow:['Measure voltage THD','Check VFD output waveform','Measure frame natural frequency','Check earthing system'] },
+  ],
+
+  conveyor:[
+    { id:'belt_misalign',  name:'Belt Misalignment / Tracking Fault',diff:'easy', time:10,
+      sensors:{belt_drift:{base:85,bad:142,unit:'mm drift',norm:[0,50]},edge_wear:{base:4.2,bad:8.8,unit:'mm/day',norm:[0,2]},belt_speed:{base:2.1,bad:2.1,unit:'m/s',norm:[1.8,2.4]},curr:{base:68,bad:70,unit:'A',norm:[55,75]}},
+      correctDiag:'belt_misalign', correctRepair:'realign_belt', secondaryFault:'idler_failure',
+      fftProfile:[0.2,0.8,0.3,0.4,0.1,0.1,0.2,0.2,0.2],
+      symptoms:['Belt tracking to one side','Edge damage visible','Training idlers at limit','Material spillage at edges'],
+      hint:'Belt drift >50mm with edge wear confirms tracking problem. Inspect load distribution and training idlers.',
+      guidedHL:['training_idlers','belt_edge'], workflow:['Measure belt drift','Check loading symmetry','Inspect training idlers','Check pulley alignment'] },
+
+    { id:'drive_slip',    name:'Drive Pulley Slip',                  diff:'medium', time:15,
+      sensors:{belt_speed:{base:1.7,bad:1.4,unit:'m/s',norm:[1.8,2.4]},motor_curr:{base:88,bad:94,unit:'A',norm:[55,75]},belt_tension:{base:28,bad:22,unit:'kN',norm:[40,65]},slip_pct:{base:19,bad:28,unit:'%',norm:[0,3]}},
+      correctDiag:'belt_slip', correctRepair:'increase_tension', secondaryFault:'lagging_damage',
+      fftProfile:[0.3,0.8,0.4,0.5,0.1,0.2,0.2,0.1,0.1],
+      symptoms:['Belt speed < drive speed','Motor overcurrent','Burning rubber smell','Scorch marks on lagging'],
+      hint:'Speed discrepancy with high current and low tension = belt slip. Check tensioner system immediately.',
+      guidedHL:['tensioner','drive_pulley'], workflow:['Verify speed discrepancy','Measure belt tension','Inspect drive pulley lagging','Check tensioner counterweight'] },
+
+    { id:'pulley_wear',   name:'Drive Pulley Lagging Wear',          diff:'medium', time:16,
+      sensors:{belt_slip:{base:8,bad:18,unit:'% slip',norm:[0,3]},lagging_thick:{base:4.2,bad:1.8,unit:'mm',norm:[10,20]},belt_tension:{base:52,bad:45,unit:'kN',norm:[40,65]},curr:{base:78,bad:84,unit:'A',norm:[55,75]}},
+      correctDiag:'lagging_wear', correctRepair:'regrip_lagging', secondaryFault:'belt_slip',
+      fftProfile:[0.2,0.8,0.4,0.5,0.1,0.2,0.2,0.1,0.1],
+      symptoms:['Progressive increase in slip','Lagging surface glazed','Belt back-marking','Tension adequate but slip increasing'],
+      hint:'Increasing slip with adequate tension and glazed lagging surface indicates lagging failure.',
+      guidedHL:['drive_pulley'], workflow:['Measure lagging thickness','Check surface condition','Measure slip percentage','Assess re-lagging urgency'] },
+
+    { id:'idler_seize',   name:'Idler Roller Seizure',              diff:'easy', time:9,
+      sensors:{temp_idler:{base:112,bad:145,unit:'°C',norm:[20,60]},curr:{base:70,bad:74,unit:'A',norm:[55,75]},belt_drift:{base:40,bad:65,unit:'mm',norm:[0,50]}},
+      correctDiag:'idler_seizure', correctRepair:'replace_idler', secondaryFault:'belt_damage',
+      fftProfile:[0.1,0.4,0.2,0.3,0.1,0.1,0.2,0.2,0.2],
+      symptoms:['Hot spot on thermal camera','Burning smell in gallery','Belt lateral drift near hot idler','Fire risk'],
+      hint:'Thermal alarm with burning smell and drift near one idler location = seized idler. Stop and replace immediately.',
+      guidedHL:['idler_row'], workflow:['Walk the belt — locate hot idler','Thermal camera survey','STOP belt','Replace idler set','Inspect adjacent rows'] },
+
+    { id:'tensioning_err',name:'Tensioner System Failure',           diff:'medium', time:14,
+      sensors:{belt_tension:{base:18,bad:12,unit:'kN',norm:[40,65]},belt_sag:{base:3.2,bad:5.8,unit:'%',norm:[0,1.5]},motor_curr:{base:82,bad:88,unit:'A',norm:[55,75]},belt_slip:{base:12,bad:22,unit:'%',norm:[0,3]}},
+      correctDiag:'tension_failure', correctRepair:'restore_tension', secondaryFault:'drive_slip',
+      fftProfile:[0.2,0.6,0.3,0.4,0.1,0.1,0.2,0.2,0.2],
+      symptoms:['Belt sag visible between idlers','Tension critically below minimum','Take-up gravity weight missing or stuck','Multiple slip events'],
+      hint:'Belt sag and low tension with take-up system malfunction = tensioner failure. Find the take-up system issue.',
+      guidedHL:['tensioner','take_up'], workflow:['Measure belt tension','Inspect take-up system','Check counterweight present','Verify gravity/spring system free to move'] },
+  ],
+
+  hydraulic:[
+    { id:'hpu_cavitation', name:'HPU Pump Cavitation',               diff:'medium', time:16,
+      sensors:{inlet_press:{base:0.3,bad:0.1,unit:'bar',norm:[0.8,2.0]},noise_db:{base:88,bad:96,unit:'dB(A)',norm:[60,85]},flow:{base:45,bad:30,unit:'L/min',norm:[60,120]},oil_temp:{base:68,bad:72,unit:'°C',norm:[35,60]}},
+      correctDiag:'hpu_cavitation', correctRepair:'clear_hpu_inlet', secondaryFault:'valve_stick',
+      fftProfile:[0.3,1.2,0.4,0.5,0.2,0.2,0.2,4.8,2.8],
+      symptoms:['Crackling/knocking from pump','Flow erratic','Inlet strainer blocked','Oil temperature rising'],
+      hint:'HPU pump cavitation from blocked inlet strainer. Low inlet pressure with broadband noise is the signature.',
+      guidedHL:['hpu_pump','inlet_filter'], workflow:['Check inlet pressure','Inspect suction strainer','Verify oil level','Check for air ingress'] },
+
+    { id:'valve_stick',   name:'Directional Valve Stick/Fail',       diff:'medium', time:14,
+      sensors:{spool_pos:{base:48,bad:21,unit:'%',norm:[45,55]},sys_press:{base:280,bad:340,unit:'bar',norm:[150,320]},flow:{base:32,bad:18,unit:'L/min',norm:[60,120]},temp:{base:72,bad:78,unit:'°C',norm:[35,60]}},
+      correctDiag:'valve_failure', correctRepair:'replace_valve', secondaryFault:'overpressure',
+      fftProfile:[0.2,0.8,0.3,0.4,0.1,0.1,0.2,0.3,0.2],
+      symptoms:['Actuator not moving to command','High system pressure (relief cracking)','Spool position not following command','Oil heating rapidly'],
+      hint:'Spool position not matching command with rising pressure = valve stuck. Do not force — check for contamination.',
+      guidedHL:['valve_block','manifold'], workflow:['Verify electrical signal to valve','Measure spool position feedback','Check oil cleanliness level','Attempt manual override (safe conditions)'] },
+
+    { id:'hpu_leak',      name:'Internal Leakage / Bypass',          diff:'hard', time:20,
+      sensors:{volumetric_eff:{base:62,bad:44,unit:'%',norm:[88,98]},flow_loss:{base:18,bad:32,unit:'L/min',norm:[0,5]},temp:{base:74,bad:82,unit:'°C',norm:[35,60]},sys_press:{base:180,bad:140,unit:'bar',norm:[150,320]}},
+      correctDiag:'internal_leak', correctRepair:'seal_overhaul', secondaryFault:null,
+      fftProfile:[0.2,0.6,0.3,0.4,0.1,0.1,0.2,0.2,0.2],
+      symptoms:['Low volumetric efficiency','Oil temperature rising (energy lost as heat)','System pressure cannot reach setpoint','Flow meter balance shows loss'],
+      hint:'Volumetric efficiency below 80% with oil heating and pressure deficit = internal bypass leakage.',
+      guidedHL:['actuator_seals','pump_clearances'], workflow:['Flow balance test','Measure volumetric efficiency','Thermal survey for hot bypass paths','Check cylinder rod seals'] },
+
+    { id:'overpressure',  name:'System Overpressure Event',          diff:'hard', time:18,
+      sensors:{sys_press:{base:385,bad:420,unit:'bar',norm:[150,320]},relief_open:{base:1,bad:1,unit:'(cycling)',norm:[0,0]},temp:{base:76,bad:88,unit:'°C',norm:[35,60]},flow:{base:15,bad:10,unit:'L/min',norm:[60,120]}},
+      correctDiag:'overpressure', correctRepair:'reset_relief_valve', secondaryFault:'hpu_leak',
+      fftProfile:[0.3,0.8,0.4,0.5,0.1,0.2,0.2,0.2,0.2],
+      symptoms:['Pressure above 350 bar','Relief valve cycling continuously','High oil temperature','Hydraulic shock / water hammer'],
+      hint:'Relief valve continuously cracking with excessive pressure = blocked downstream or relief valve set too low. Check valve setting.',
+      guidedHL:['relief_valve','check_valve'], workflow:['Verify relief valve setting','Check for downstream blockage','Inspect check valves','Measure cycle frequency'] },
+  ],
+};
+
+// ─── DIAGNOSIS OPTIONS PER EQUIPMENT ──────────────────────
+const DIAGNOSES = {
+  pump:[
+    {v:'cavitation',          l:'Cavitation — Suction Starvation'},
+    {v:'bearing_failure',     l:'Rolling Element Bearing Failure'},
+    {v:'misalignment',        l:'Shaft/Coupling Misalignment'},
+    {v:'impeller_damage',     l:'Impeller Erosion/Damage'},
+    {v:'blocked_suction',     l:'Blocked Suction Strainer'},
+    {v:'seal_failure',        l:'Mechanical Seal Failure'},
+    {v:'resonance_unbalance', l:'Vibration Resonance / Rotor Unbalance'},
+    {v:'dry_run',             l:'Pump Dry Run / Loss of Prime'},
+    {v:'lubrication_failure', l:'Lubrication Failure'},
+    {v:'motor_fault',         l:'Motor Electrical Fault'},
+  ],
+  gearbox:[
+    {v:'gear_pitting',        l:'Gear Tooth Pitting / Spalling'},
+    {v:'bearing_cage',        l:'Bearing Cage Failure'},
+    {v:'lube_starvation',     l:'Lubrication Starvation'},
+    {v:'misalignment_gb',     l:'Input Shaft Misalignment'},
+    {v:'backlash_wear',       l:'Backlash Growth / Tooth Wear'},
+    {v:'overload',            l:'Gearbox Overload'},
+    {v:'oil_contamination',   l:'Oil Contamination'},
+  ],
+  motor:[
+    {v:'phase_imbalance',     l:'Phase Current Imbalance'},
+    {v:'insulation_failure',  l:'Winding Insulation Breakdown'},
+    {v:'rotor_bar',           l:'Rotor Bar Crack'},
+    {v:'motor_bearing',       l:'Motor Bearing Overheating'},
+    {v:'electrical_resonance',l:'Frequency Resonance / Harmonics'},
+    {v:'overload_motor',      l:'Motor Overload'},
+    {v:'supply_fault',        l:'Supply Voltage Fault'},
+  ],
+  conveyor:[
+    {v:'belt_misalign',       l:'Belt Misalignment / Tracking Fault'},
+    {v:'belt_slip',           l:'Drive Pulley Belt Slip'},
+    {v:'lagging_wear',        l:'Drive Pulley Lagging Wear'},
+    {v:'idler_seizure',       l:'Idler Roller Seizure'},
+    {v:'tension_failure',     l:'Tensioner System Failure'},
+    {v:'belt_damage',         l:'Belt Structural Damage'},
+    {v:'blockage',            l:'Transfer Point Blockage'},
+  ],
+  hydraulic:[
+    {v:'hpu_cavitation',      l:'HPU Pump Cavitation'},
+    {v:'valve_failure',       l:'Directional Valve Failure'},
+    {v:'internal_leak',       l:'Internal Leakage / Bypass'},
+    {v:'overpressure',        l:'System Overpressure'},
+    {v:'contamination',       l:'Oil Contamination'},
+    {v:'air_ingress',         l:'Air Ingress / Aeration'},
+    {v:'filter_blocked',      l:'Filter Bypass / Blocked Filter'},
+  ],
+};
+
+// ─── REPAIR OPTIONS ────────────────────────────────────────
+const REPAIRS = {
+  pump:[
+    {v:'clear_suction',       l:'Clear Suction / Clean Strainer',   cost:250,  dt:2},
+    {v:'replace_bearing_de',  l:'Replace DE Bearing',               cost:2800, dt:8},
+    {v:'laser_align',         l:'Laser Alignment (Pump/Motor)',      cost:600,  dt:4},
+    {v:'replace_impeller',    l:'Replace Impeller',                  cost:4200, dt:12},
+    {v:'clean_strainer',      l:'Clean Suction Strainer',           cost:150,  dt:1},
+    {v:'replace_seal',        l:'Replace Mechanical Seal',          cost:1800, dt:6},
+    {v:'balance_correct',     l:'Dynamic Balancing / Correct Base', cost:1400, dt:5},
+    {v:'prime_restart',       l:'Re-prime and Controlled Restart',  cost:200,  dt:2},
+    {v:'full_overhaul',       l:'Full Pump Overhaul',               cost:18000,dt:72},
+    {v:'monitor_only',        l:'Continue + Increase Monitoring',   cost:0,    dt:0},
+  ],
+  gearbox:[
+    {v:'gearbox_overhaul',    l:'Full Gearbox Overhaul',            cost:28000,dt:120},
+    {v:'replace_bearing_gb',  l:'Replace Gearbox Bearing',         cost:6500, dt:24},
+    {v:'refill_flush_oil',    l:'Oil Flush and Refill',             cost:800,  dt:4},
+    {v:'realign_gearbox',     l:'Laser Align Gearbox Input',       cost:700,  dt:5},
+    {v:'gear_replacement',    l:'Gear Set Replacement',             cost:45000,dt:180},
+    {v:'monitor_only',        l:'Continue + Increase Monitoring',   cost:0,    dt:0},
+  ],
+  motor:[
+    {v:'motor_rewind',        l:'Motor Rewind (Workshop)',          cost:12000,dt:72},
+    {v:'motor_replace',       l:'Replace with Spare Motor',         cost:18000,dt:24},
+    {v:'replace_motor_bearing',l:'Replace Motor Bearing',           cost:1800, dt:8},
+    {v:'harmonic_filter',     l:'Install Harmonic Filter',          cost:8500, dt:16},
+    {v:'rotor_rewind',        l:'Rotor Rewind / Replace',           cost:14000,dt:96},
+    {v:'monitor_only',        l:'Continue + Increase Monitoring',   cost:0,    dt:0},
+  ],
+  conveyor:[
+    {v:'realign_belt',        l:'Belt Realignment / Tracking Adjust',cost:400,dt:3},
+    {v:'increase_tension',    l:'Restore Belt Tension',             cost:300,  dt:2},
+    {v:'regrip_lagging',      l:'Re-lagging Drive Pulley',         cost:3500, dt:12},
+    {v:'replace_idler',       l:'Replace Idler Roller Set',        cost:450,  dt:1},
+    {v:'restore_tension',     l:'Repair Tensioner System',         cost:1200, dt:4},
+    {v:'belt_replacement',    l:'Full Belt Replacement',            cost:85000,dt:120},
+    {v:'monitor_only',        l:'Continue + Increase Monitoring',   cost:0,    dt:0},
+  ],
+  hydraulic:[
+    {v:'clear_hpu_inlet',     l:'Clean Inlet Strainer / Flush',    cost:400,  dt:3},
+    {v:'replace_valve',       l:'Replace Directional Valve',       cost:2800, dt:6},
+    {v:'seal_overhaul',       l:'Seal/Actuator Overhaul',          cost:5500, dt:18},
+    {v:'reset_relief_valve',  l:'Adjust/Replace Relief Valve',     cost:600,  dt:2},
+    {v:'oil_change_filter',   l:'Full Oil Change + Filter',        cost:1200, dt:4},
+    {v:'monitor_only',        l:'Continue + Increase Monitoring',   cost:0,    dt:0},
+  ],
+};
+
+// ─── COMPONENTS PER EQUIPMENT ──────────────────────────────
+const COMPONENTS = {
+  pump:[
+    {id:'motor',           icon:'⚡', name:'Electric Motor'},
+    {id:'coupling',        icon:'🔗', name:'Flexible Coupling'},
+    {id:'de_bearing',      icon:'⭕', name:'DE Bearing'},
+    {id:'nde_bearing',     icon:'⭕', name:'NDE Bearing'},
+    {id:'impeller',        icon:'🌀', name:'Impeller'},
+    {id:'seal',            icon:'💧', name:'Mechanical Seal'},
+    {id:'suction_valve',   icon:'🔺', name:'Suction Valve/Strainer'},
+    {id:'baseplate',       icon:'🔩', name:'Baseplate & Grouting'},
+  ],
+  gearbox:[
+    {id:'input_shaft',     icon:'➡️', name:'Input Shaft Assembly'},
+    {id:'gears',           icon:'⚙️', name:'Gear Set (Helical)'},
+    {id:'output_bearing',  icon:'⭕', name:'Output Bearing'},
+    {id:'oil_sump',        icon:'🛢️', name:'Oil Sump & Level'},
+    {id:'oil_pump',        icon:'🔧', name:'Lube Oil Pump'},
+    {id:'oil_filter',      icon:'🔘', name:'Oil Filter / Cooler'},
+    {id:'coupling_gb',     icon:'🔗', name:'Input Coupling'},
+    {id:'seals_gb',        icon:'💧', name:'Shaft Seals'},
+  ],
+  motor:[
+    {id:'windings_a',      icon:'⚡', name:'Phase A Windings'},
+    {id:'windings_b',      icon:'⚡', name:'Phase B Windings'},
+    {id:'windings_c',      icon:'⚡', name:'Phase C Windings'},
+    {id:'rotor_cage',      icon:'🌀', name:'Rotor Cage'},
+    {id:'motor_bearing_de',icon:'⭕', name:'Motor DE Bearing'},
+    {id:'motor_bearing_nde',icon:'⭕',name:'Motor NDE Bearing'},
+    {id:'vfd',             icon:'📡', name:'VFD / Starter'},
+    {id:'capacitor_bank',  icon:'🔋', name:'Capacitor Bank'},
+  ],
+  conveyor:[
+    {id:'drive_pulley',    icon:'🔘', name:'Drive (Head) Pulley'},
+    {id:'belt_edge',       icon:'📏', name:'Belt & Edge Condition'},
+    {id:'training_idlers', icon:'⭕', name:'Training Idlers'},
+    {id:'idler_row',       icon:'⭕', name:'Carry Idler Rows'},
+    {id:'tensioner',       icon:'🔩', name:'Gravity Tensioner'},
+    {id:'take_up',         icon:'🔩', name:'Take-up Assembly'},
+    {id:'tail_pulley',     icon:'🔘', name:'Tail Pulley'},
+    {id:'skirt_boards',    icon:'🔲', name:'Skirt Boards / Chute'},
+  ],
+  hydraulic:[
+    {id:'hpu_pump',        icon:'🔧', name:'HPU Pump Assembly'},
+    {id:'inlet_filter',    icon:'🔘', name:'Inlet Strainer'},
+    {id:'valve_block',     icon:'🔺', name:'Valve Block / Manifold'},
+    {id:'relief_valve',    icon:'🔺', name:'Relief Valve'},
+    {id:'actuator_seals',  icon:'💧', name:'Actuator / Cylinder Seals'},
+    {id:'check_valve',     icon:'🔺', name:'Check Valves'},
+    {id:'manifold',        icon:'🔩', name:'Pressure Manifold'},
+    {id:'pump_clearances', icon:'🔘', name:'Pump Internal Clearances'},
+  ],
+};
+
+// ─── INSPECTION RESULTS ENGINE ─────────────────────────────
+function generateInspectResult(compId, scenario) {
+  const fault = scenario.fault;
+  const sc = scenario;
+  const relevantComp = fault.guidedHL.includes(compId);
+  const status = relevantComp ? (Math.random()>.3?'fault':'warn') : (Math.random()>.85?'warn':'ok');
+
+  const okPhrases = [
+    'Component within normal operating parameters. No anomalies detected.',
+    'Visual inspection clear. No evidence of wear, corrosion or damage.',
+    'Operating normally. Measurements within specification.',
+    'No faults found. Continue normal monitoring.',
+  ];
+  const warnPhrases = [
+    'Minor anomaly noted — recommend increased monitoring frequency.',
+    'Slight deviation from normal — not yet at action threshold.',
+    'Condition marginal — schedule inspection at next planned shutdown.',
+    'Evidence of early wear — plan replacement within 90 days.',
+  ];
+
+  if (status === 'ok') return { status:'ok', text: pick(okPhrases), measurements:[] };
+  if (status === 'warn') return { status:'warn', text: pick(warnPhrases), measurements:[] };
+
+  // Generate fault-specific inspection text
+  const faultTexts = {
+    bearing_failure:`FAULT CONFIRMED: Bearing outer race shows surface fatigue spalling. Temperature ${sc.sensors.temp_bearing?.base||94}°C. BPFO frequency dominant in spectrum. Metal particle count elevated — ${rndInt(80,200)} ppm Fe.`,
+    cavitation:`FAULT CONFIRMED: Impeller suction side shows active pitting and erosion. Suction pressure measured at ${sc.sensors.suct_press?.base||0.3} bar (minimum 1.2 bar required). Broadband noise elevated.`,
+    misalignment:`FAULT CONFIRMED: Coupling insert showing asymmetric wear pattern (angular misalignment). Offset measured: ${rnd(0.08,0.18)} mm. Angular deviation: ${rnd(0.04,0.12)} mm/100mm. Maintenance log confirms alignment NOT verified post last coupling change.`,
+    impeller_damage:`FAULT CONFIRMED: Impeller blade pitting visible on suction face. 3 blades showing >4mm material loss. Efficiency reduced to ~${rndInt(42,58)}%. Hydraulic imbalance confirmed.`,
+    blocked_suction:`FAULT CONFIRMED: Suction strainer ${rndInt(70,90)}% blocked with scale and process deposits. Differential pressure across strainer: ${rnd(0.8,1.4)} bar.`,
+    seal_failure:`FAULT CONFIRMED: Seal faces show thermal cracking on stationary seat. Carbon face chipped. Leakage rate: ${rndInt(18,40)} drops/min (maximum 10). Environmental containment required immediately.`,
+    resonance_unbalance:`FAULT CONFIRMED: 1x amplitude ${rnd(14,20)} mm/s peak. Phase measurement confirms rotor unbalance. Baseplate grout cracking visible. Dynamic balancing required.`,
+    dry_run:`FAULT CONFIRMED: Pump casing temperature ${rndInt(110,145)}°C. Suction completely dry. Impeller shows evidence of dry running — thermal scoring on wearing rings.`,
+    gear_pitting:`FAULT CONFIRMED: Gear tooth surface showing progressive pitting across ${rndInt(40,65)}% of tooth face width. Fe particles: ${rndInt(200,480)} ppm. Immediate monitoring escalation required.`,
+    bearing_cage:`FAULT CONFIRMED: Bearing cage fragment detected in oil filter. Cu content ${rndInt(80,180)} ppm. FTF and BSF peaks confirmed. Immediate shutdown recommended.`,
+    lube_starvation:`FAULT CONFIRMED: Oil level ${rndInt(8,20)}% — critically low. Oil pump outlet pressure ${rnd(0.05,0.2)} bar. Gear surfaces showing scuffing from starved lubrication.`,
+    phase_imbalance:`FAULT CONFIRMED: Phase A current ${rndInt(90,102)}A vs Phase C ${rndInt(72,80)}A — imbalance ${rndInt(11,18)}%. Insulation Resistance Phase A: ${rndInt(60,180)} MΩ (severely degraded).`,
+    insulation_failure:`FAULT CONFIRMED: IR measurement: Phase A-E ${rndInt(8,40)} MΩ, Phase B-E ${rndInt(8,40)} MΩ, Phase C-E ${rndInt(8,40)} MΩ. ALL PHASES BELOW MINIMUM 100 MΩ. PI = ${rnd(0.7,1.1)} — insulation breakdown imminent. MOTOR MUST NOT BE RE-ENERGISED.`,
+    rotor_bar:`FAULT CONFIRMED: MCSA shows (1x±2sf) sidebands at -${rnd(28,38)} dB relative to 1x. Slip frequency ${rnd(0.6,1.2)} Hz. ${rndInt(1,3)} rotor bars suspected cracked.`,
+    motor_bearing:`FAULT CONFIRMED: Motor DE bearing temperature ${rndInt(95,130)}°C. BPFO peak ${rnd(3.8,6.2)} mm/s. Grease discoloured and dry. Immediate bearing replacement required.`,
+    belt_misalign:`FAULT CONFIRMED: Belt drift ${rndInt(80,150)} mm to return side. Edge wear rate ${rnd(5,12)} mm/day. Training idler #${rndInt(4,9)} at full adjustment limit — cannot correct further.`,
+    belt_slip:`FAULT CONFIRMED: Belt speed ${rnd(1.4,1.7)} m/s vs drive ${rnd(2.0,2.2)} m/s — slip ${rndInt(15,28)}%. Tensioner counterweight missing/insufficient. Lagging ${rndInt(55,75)}% worn.`,
+    lagging_wear:`FAULT CONFIRMED: Lagging thickness ${rnd(1.2,3.0)} mm (new = 18mm). Surface glazed and cracked. Herringbone groove depth below 2mm — friction coefficient degraded.`,
+    idler_seizure:`FAULT CONFIRMED: Idler row ${rndInt(30,80)} fully seized. Surface temperature ${rndInt(100,155)}°C. Shell scoring visible. Fire risk confirmed if operation continues.`,
+    tension_failure:`FAULT CONFIRMED: Belt tension ${rndInt(10,25)} kN (minimum 40 kN). Take-up gravity weight ${rndInt(30,60)}% below design. Belt sag ${rnd(3,8)}% between idlers.`,
+    hpu_cavitation:`FAULT CONFIRMED: HPU inlet pressure ${rnd(0.05,0.2)} bar (minimum 0.8 bar). Inlet strainer ${rndInt(65,85)}% blocked. Pump showing cavitation erosion on porting face.`,
+    valve_failure:`FAULT CONFIRMED: Spool position ${rndInt(18,35)}% vs command ${rndInt(92,98)}%. Contamination particle count ISO 4406 22/21/18 — severely contaminated. Valve land scoring confirmed.`,
+    internal_leak:`FAULT CONFIRMED: Volumetric efficiency ${rndInt(38,55)}%. Thermal survey shows ${rndInt(3,6)} hot bypass paths. Cylinder rod seal bypass: ${rnd(8,18)} L/min loss.`,
+    overpressure:`FAULT CONFIRMED: System pressure ${rndInt(370,420)} bar — ${rndInt(15,32)}% above set limit. Relief valve seat eroded — cracking continuously at ${rndInt(340,360)} bar. Downstream check valve suspect.`,
+  };
+
+  const faultKey = fault.correctDiag;
+  const text = faultTexts[faultKey] || `FAULT DETECTED: Abnormal condition confirmed on ${compId}. Further investigation required.`;
+  return { status:'fault', text, measurements:[] };
+}
+
+// ─── SCENARIO GENERATION ENGINE ────────────────────────────
+function generateScenario(eqId, faultId, mode) {
+  const eq = EQUIPMENT.find(e=>e.id===eqId);
+  const fault = FAULTS[eqId].find(f=>f.id===faultId);
+  const isExpert = mode === 'expert';
+
+  // Randomize fault progression
+  const severity = rnd(0.6, isExpert ? 1.0 : 0.85);
+  const faultInitHour = rndInt(2, isExpert ? 6 : 12);
+  const noiseLevel = isExpert ? rnd(0.08, 0.18) : rnd(0.02, 0.08);
+
+  // Generate sensor time series (48h)
+  const timePoints = 48;
+  const sensorHistory = {};
+  for (const [key, s] of Object.entries(fault.sensors)) {
+    sensorHistory[key] = [];
+    const startVal = s.base - (s.bad !== undefined ? (s.bad - s.base) * 0.1 : 0);
+    for (let i = 0; i < timePoints; i++) {
+      let val;
+      if (i < faultInitHour) {
+        val = startVal + (Math.random()-0.5) * Math.abs(startVal) * 0.02;
+      } else {
+        const progress = (i - faultInitHour) / (timePoints - faultInitHour);
+        const target = s.bad !== undefined ? s.bad * severity + s.base * (1-severity) : s.base;
+        val = startVal + (target - startVal) * Math.pow(progress, 1.4) + (Math.random()-0.5) * Math.abs(s.base) * noiseLevel;
+      }
+      sensorHistory[key].push(parseFloat(val.toFixed(2)));
+    }
+  }
+
+  // Generate alarm log
+  const alarmLog = generateAlarmLog(fault, faultInitHour, severity, isExpert);
+
+  // Generate maintenance log
+  const maintLog = generateMaintLog(fault, eqId);
+
+  // Randomize secondary fault trigger threshold
+  const secFaultThreshold = rnd(0.65, 0.82);
+
+  // False positives (expert mode)
+  const falsePositives = new Set();
+  if (isExpert) {
+    const fpSensors = Object.keys(fault.sensors).filter(()=>Math.random()>.6);
+    fpSensors.forEach(k=>falsePositives.add(k));
+  }
+
+  // Missing data intervals
+  const missingData = new Set();
+  if (isExpert || Math.random()>.7) {
+    const allKeys = Object.keys(fault.sensors);
+    if (allKeys.length > 2) missingData.add(pick(allKeys));
+  }
+
+  // Intermittent fault simulation
+  const intermittent = (fault.diff === 'expert' || isExpert) && Math.random() > 0.5
+    ? { sensor: pick(Object.keys(fault.sensors)), interval: rndInt(8,20) }
+    : null;
+
+  // Budget for expert mode
+  const budget = isExpert ? rndInt(8000, 25000) : 999999;
+
+  return {
+    eq, fault, mode, severity, faultInitHour, noiseLevel,
+    sensorHistory, alarmLog, maintLog,
+    secFaultThreshold, falsePositives, missingData, intermittent,
+    budget, timePoints,
+    components: COMPONENTS[eqId].map(c => ({
+      ...c,
+      status: fault.guidedHL.includes(c.id) ? 'fault' : Math.random()>.85 ? 'warn' : 'ok',
+      revealed: false,
+    }))
+  };
+}
+
+function generateAlarmLog(fault, initHour, severity, isExpert) {
+  const log = [];
+  const now = new Date();
+  const hrsBack = 48;
+
+  // Pre-fault info alarms
+  const infoAlarms = [
+    `${fault.fault?.correctDiag||'SYSTEM'}: Trending deviation detected in early monitoring`,
+    'Routine inspection reminder due',
+    'Lubrication check completed — results pending lab',
+  ];
+
+  for (let h = 0; h < initHour; h+=rndInt(4,8)) {
+    const t = new Date(now - (hrsBack - h)*3600000);
+    log.push({time:`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`, code:`INFO-${String(Math.floor(Math.random()*900)+100)}`, level:'info', msg: pick(infoAlarms), fake:false});
+  }
+
+  // Main fault alarms
+  const faultAlarms = fault.symptoms.map((s,i)=>({
+    time: `${String(Math.floor(initHour+i*1.5)%24).padStart(2,'0')}:${String(rndInt(0,59)).padStart(2,'0')}`,
+    code: `${fault.id.slice(0,3).toUpperCase()}-${String(rndInt(100,999))}`,
+    level: i===0?'warning':i<fault.symptoms.length-1?'warning':'critical',
+    msg: s, fake:false
+  }));
+  log.push(...faultAlarms);
+
+  // False positive alarm (expert)
+  if (isExpert && Math.random()>.4) {
+    log.push({
+      time:`${String(rndInt(initHour+1,initHour+3)%24).padStart(2,'0')}:${String(rndInt(0,59)).padStart(2,'0')}`,
+      code:`FP-${String(rndInt(100,999))}`,
+      level:'warning',
+      msg:`FALSE POSITIVE: Sensor glitch detected — ${pick(['Temperature sensor drift','Vibration transducer noise','Current sensor calibration'])}.`,
+      fake:true
+    });
+  }
+
+  // Safety critical
+  if (severity > 0.75) {
+    log.push({
+      time:`${String(rndInt(initHour+2,initHour+5)%24).padStart(2,'0')}:${String(rndInt(0,59)).padStart(2,'0')}`,
+      code:`SAF-${String(rndInt(100,999))}`, level:'critical',
+      msg:`SAFETY CRITICAL: Immediate maintenance intervention required — ${fault.name}`, fake:false
+    });
+  }
+
+  return log.sort((a,b)=>a.time.localeCompare(b.time));
+}
+
+function generateMaintLog(fault, eqId) {
+  const today = new Date();
+  const entries = [];
+
+  // Recent relevant entry
+  const monthsAgo = d => {
+    const r = new Date(today); r.setMonth(r.getMonth()-d);
+    return r.toISOString().split('T')[0];
+  };
+
+  const techNames = ['J. Mosweu','T. Dikgole','A. Seretse','M. Tsheko','B. Gabaake','L. Molapo'];
+
+  const relevantMaint = {
+    bearing_failure:  [{d:1, t:'Bearing temperature alarm noted. Grease replenished.', flag:'Bearing replacement deferred — parts on order. RISK: further operation may cause secondary damage.'},
+                       {d:3, t:'Vibration survey completed. Elevated 1x component.'},
+                       {d:8, t:'Last bearing replacement. OEM spec bearing installed. Alignment verified.'}],
+    cavitation:       [{d:2, t:'Flow rate complaint from operations. Suction strainer inspected — partially blocked. Cleared.', flag:'Root cause not fully resolved — strainer blocking frequency increasing.'},
+                       {d:5, t:'Suction strainer cleaned. 60% blockage removed.'},
+                       {d:14, t:'Impeller replaced — previous showed cavitation pitting.'}],
+    misalignment:     [{d:1, t:'Coupling element replaced. ALIGNMENT NOT RE-CHECKED post installation — workorder deviation.', flag:'CRITICAL: Alignment must be verified before continued operation.'},
+                       {d:4, t:'Laser alignment last performed. Results: offset 0.04mm, angular 0.02mm/100mm — within spec.'}],
+    default:          [{d:2, t:'Routine PM completed. Equipment returned to service. No abnormalities.'},
+                       {d:6, t:'Monthly inspection completed. Lubrication replenished.'},
+                       {d:12, t:'Annual overhaul — all wear parts replaced.'}],
+  };
+
+  const mlog = relevantMaint[fault.correctDiag] || relevantMaint.default;
+  mlog.forEach((e,i)=>{
+    entries.push({date:monthsAgo(e.d), tech:pick(techNames), desc:e.t, flag:e.flag||null});
+  });
+
+  return entries;
+}
+
+// ─── SVG DIAGRAMS ──────────────────────────────────────────
+function getEquipmentSVG(eqId, scenario) {
+  const s = scenario.fault.sensors;
+  const sv = k => scenario.sensorHistory[k]?.[47] ?? s[k]?.base ?? 0;
+  const color = (v,mn,mx) => v>mx?'#ff1a3a':v>mx*.9?'#ffc400':'#2dff6e';
+
+  const diagrams = {
+    pump:`<svg viewBox="0 0 260 190" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a3a4a"/><stop offset="100%" stop-color="#0a1e2a"/></linearGradient></defs>
+      <rect x="8" y="65" width="72" height="52" fill="url(#g1)" stroke="#254558" stroke-width="1.5" rx="1"/>
+      <text x="44" y="88" fill="#6a93a8" font-family="monospace" font-size="8" text-anchor="middle">MOTOR</text>
+      <text x="44" y="100" fill="#00d4ff" font-family="monospace" font-size="7" text-anchor="middle">45kW</text>
+      <rect x="82" y="85" width="16" height="10" fill="#142028" stroke="#254558" stroke-width="1" rx="1"/>
+      <text x="90" y="108" fill="#2e4d5e" font-family="monospace" font-size="5.5" text-anchor="middle">CPLG</text>
+      <ellipse cx="152" cy="90" rx="40" ry="40" fill="url(#g1)" stroke="#254558" stroke-width="1.5"/>
+      <ellipse cx="152" cy="90" rx="24" ry="24" fill="#0a1318" stroke="#1a2d3a" stroke-width="1"/>
+      <g transform="translate(152,90)"><line x1="0" y1="-16" x2="0" y2="16" stroke="#254558" stroke-width="1.5"/><line x1="-16" y1="0" x2="16" y2="0" stroke="#254558" stroke-width="1.5"/><line x1="-12" y1="-12" x2="12" y2="12" stroke="#254558" stroke-width="1"/><line x1="12" y1="-12" x2="-12" y2="12" stroke="#254558" stroke-width="1"/><circle cx="0" cy="0" r="4" fill="#1a2d3a" stroke="#00d4ff" stroke-width="1"/></g>
+      <circle cx="112" cy="90" r="5" fill="#0a1318" stroke="${color(sv('vib_de')??sv('vib')??3,0,7)}" stroke-width="1.5"/>
+      <text x="112" y="82" fill="${color(sv('temp_bearing')??55,35,70)}" font-family="monospace" font-size="6.5" text-anchor="middle">${Math.round(sv('temp_bearing')??sv('temp')??55)}°C</text>
+      <text x="112" y="106" fill="#6a93a8" font-family="monospace" font-size="5.5" text-anchor="middle">DE BRG</text>
+      <circle cx="192" cy="90" r="5" fill="#0a1318" stroke="#2dff6e" stroke-width="1.5"/>
+      <text x="192" y="106" fill="#6a93a8" font-family="monospace" font-size="5.5" text-anchor="middle">NDE</text>
+      <rect x="112" y="132" width="76" height="11" fill="url(#g1)" stroke="#254558" stroke-width="1"/>
+      <text x="152" y="160" fill="#6a93a8" font-family="monospace" font-size="5.5" text-anchor="middle">← SUCTION</text>
+      <rect x="192" y="52" width="11" height="47" fill="url(#g1)" stroke="#254558" stroke-width="1"/>
+      <text x="204" y="47" fill="#6a93a8" font-family="monospace" font-size="5.5">↑DISC</text>
+      <line x1="126" y1="78" x2="126" y2="102" stroke="${color(sv('leak_rate')??0,0,10)}" stroke-width="2"/>
+      <text x="152" y="22" fill="${color(sv('flow')??300,250,320)}" font-family="monospace" font-size="7" text-anchor="middle">FLOW: ${Math.round(sv('flow')??300)} m³/h</text>
+    </svg>`,
+
+    gearbox:`<svg viewBox="0 0 260 190" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a3a4a"/><stop offset="100%" stop-color="#0a1e2a"/></linearGradient></defs>
+      <rect x="60" y="30" width="140" height="120" fill="url(#g2)" stroke="#254558" stroke-width="2" rx="2"/>
+      <g transform="translate(110,90)"><polygon points="0,-30 6,-10 28,-18 18,0 28,18 6,10 0,30 -6,10 -28,18 -18,0 -28,-18 -6,-10" fill="#1a2d3a" stroke="#254558" stroke-width="1"/></g>
+      <g transform="translate(165,90)"><polygon points="0,-22 4,-8 20,-14 14,0 20,14 4,8 0,22 -4,8 -20,14 -14,0 -20,-14 -4,-8" fill="#1a2d3a" stroke="#254558" stroke-width="1"/></g>
+      <line x1="110" y1="90" x2="165" y2="90" stroke="#254558" stroke-width="1" stroke-dasharray="3,3"/>
+      <rect x="8" y="75" width="55" height="30" fill="#0f1a20" stroke="#254558" stroke-width="1" rx="1"/>
+      <text x="35" y="88" fill="#6a93a8" font-family="monospace" font-size="7" text-anchor="middle">INPUT</text>
+      <text x="35" y="98" fill="#00d4ff" font-family="monospace" font-size="6" text-anchor="middle">220kW</text>
+      <text x="130" y="175" fill="${color(sv('temp_gb')??70,40,85)}" font-family="monospace" font-size="7" text-anchor="middle">TEMP: ${Math.round(sv('temp_gb')??70)}°C</text>
+      <text x="130" y="20" fill="${color(sv('vib_gb')??4,0,6)}" font-family="monospace" font-size="7" text-anchor="middle">VIB: ${(sv('vib_gb')??4).toFixed(1)} mm/s</text>
+      <text x="130" y="145" fill="${color(sv('oil_fe')??50,0,100)}" font-family="monospace" font-size="6" text-anchor="middle">OIL Fe: ${Math.round(sv('oil_fe')??50)} ppm</text>
+    </svg>`,
+
+    motor:`<svg viewBox="0 0 260 190" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#1a3a4a"/><stop offset="100%" stop-color="#0a1e2a"/></linearGradient></defs>
+      <rect x="20" y="40" width="200" height="100" fill="url(#g3)" stroke="#254558" stroke-width="2" rx="2"/>
+      <ellipse cx="120" cy="90" rx="30" ry="30" fill="#0a1318" stroke="#254558" stroke-width="1"/>
+      <g transform="translate(120,90)"><circle cx="0" cy="0" r="8" fill="#1a2d3a" stroke="#00d4ff" stroke-width="1.5"/><line x1="0" y1="0" x2="0" y2="-24" stroke="#254558" stroke-width="2"/><line x1="0" y1="0" x2="20" y2="12" stroke="#254558" stroke-width="2"/><line x1="0" y1="0" x2="-20" y2="12" stroke="#254558" stroke-width="2"/></g>
+      <rect x="22" y="42" width="30" height="15" fill="#142028" stroke="#1a2d3a" stroke-width="1"/>
+      <text x="37" y="52" fill="#2e4d5e" font-family="monospace" font-size="5" text-anchor="middle">PH-A</text>
+      <rect x="22" y="62" width="30" height="15" fill="#142028" stroke="#1a2d3a" stroke-width="1"/>
+      <text x="37" y="72" fill="#2e4d5e" font-family="monospace" font-size="5" text-anchor="middle">PH-B</text>
+      <rect x="22" y="82" width="30" height="15" fill="#142028" stroke="#1a2d3a" stroke-width="1"/>
+      <text x="37" y="92" fill="#2e4d5e" font-family="monospace" font-size="5" text-anchor="middle">PH-C</text>
+      <text x="120" y="22" fill="${color(sv('winding_temp')??120,0,155)}" font-family="monospace" font-size="7" text-anchor="middle">WINDING: ${Math.round(sv('winding_temp')??120)}°C</text>
+      <text x="120" y="170" fill="${color(sv('curr_a')??85,70,90)}" font-family="monospace" font-size="7" text-anchor="middle">CURR A:${Math.round(sv('curr_a')??85)} B:${Math.round(sv('curr_b')??85)} C:${Math.round(sv('curr_c')??85)} A</text>
+    </svg>`,
+
+    conveyor:`<svg viewBox="0 0 260 190" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#1a3a4a"/><stop offset="100%" stop-color="#0a1e2a"/></linearGradient></defs>
+      <circle cx="42" cy="115" r="24" fill="url(#g4)" stroke="#254558" stroke-width="1.5"/>
+      <circle cx="42" cy="115" r="9" fill="#0a1318" stroke="#00d4ff" stroke-width="1"/>
+      <rect x="8" y="60" width="40" height="22" fill="#0f1a20" stroke="#254558" stroke-width="1"/>
+      <text x="28" y="74" fill="#6a93a8" font-family="monospace" font-size="6" text-anchor="middle">MOTOR</text>
+      <rect x="42" y="91" width="172" height="10" fill="#162028" stroke="#1a2d3a" stroke-width="1"/>
+      <rect x="42" y="129" width="172" height="7" fill="#0a1318" stroke="#1a2d3a" stroke-width="1"/>
+      <circle cx="88" cy="96" r="5" fill="#0a1318" stroke="#254558" stroke-width="1"/>
+      <circle cx="130" cy="96" r="5" fill="#0a1318" stroke="${color(sv('temp_idler')??35,20,60)}" stroke-width="1"/>
+      <circle cx="172" cy="96" r="5" fill="#0a1318" stroke="#254558" stroke-width="1"/>
+      <circle cx="214" cy="115" r="19" fill="url(#g4)" stroke="#254558" stroke-width="1.5"/>
+      <circle cx="214" cy="115" r="7" fill="#0a1318" stroke="#254558" stroke-width="1"/>
+      <text x="130" y="80" fill="${color(sv('temp_idler')??35,20,60)}" font-family="monospace" font-size="6.5" text-anchor="middle">${Math.round(sv('temp_idler')??35)}°C</text>
+      <text x="130" y="170" fill="${color(sv('belt_tension')??52,40,65)}" font-family="monospace" font-size="6.5" text-anchor="middle">TENSION: ${Math.round(sv('belt_tension')??52)} kN · SPEED: ${(sv('belt_speed')??2.1).toFixed(1)} m/s</text>
+    </svg>`,
+
+    hydraulic:`<svg viewBox="0 0 260 190" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a3a4a"/><stop offset="100%" stop-color="#0a1e2a"/></linearGradient></defs>
+      <rect x="10" y="120" width="80" height="50" fill="url(#g5)" stroke="#254558" stroke-width="1.5" rx="1"/>
+      <text x="50" y="145" fill="#6a93a8" font-family="monospace" font-size="7" text-anchor="middle">OIL TANK</text>
+      <text x="50" y="158" fill="#00d4ff" font-family="monospace" font-size="6.5" text-anchor="middle">${Math.round(sv('oil_level')??75)}% LEVEL</text>
+      <rect x="10" y="50" width="60" height="45" fill="url(#g5)" stroke="#254558" stroke-width="1.5" rx="1"/>
+      <text x="40" y="70" fill="#6a93a8" font-family="monospace" font-size="7" text-anchor="middle">HPU PUMP</text>
+      <text x="40" y="82" fill="${color(sv('sys_press')??200,150,320)}" font-family="monospace" font-size="6" text-anchor="middle">${Math.round(sv('sys_press')??200)} bar</text>
+      <rect x="105" y="40" width="55" height="80" fill="url(#g5)" stroke="#254558" stroke-width="1.5" rx="1"/>
+      <text x="132" y="65" fill="#6a93a8" font-family="monospace" font-size="6.5" text-anchor="middle">VALVE</text>
+      <text x="132" y="78" fill="#6a93a8" font-family="monospace" font-size="6.5" text-anchor="middle">BLOCK</text>
+      <rect x="190" y="55" width="65" height="55" fill="url(#g5)" stroke="#254558" stroke-width="1.5" rx="1"/>
+      <text x="222" y="78" fill="#6a93a8" font-family="monospace" font-size="6.5" text-anchor="middle">ACTUATOR</text>
+      <line x1="70" y1="72" x2="105" y2="72" stroke="${color(sv('sys_press')??200,150,320)}" stroke-width="2"/>
+      <line x1="160" y1="72" x2="190" y2="82" stroke="#254558" stroke-width="1.5"/>
+      <line x1="50" y1="120" x2="50" y2="95" stroke="#254558" stroke-width="1.5"/>
+      <text x="130" y="175" fill="${color(sv('oil_temp')??55,35,60)}" font-family="monospace" font-size="6.5" text-anchor="middle">OIL TEMP: ${Math.round(sv('oil_temp')??sv('temp')??55)}°C</text>
+    </svg>`,
+  };
+  return diagrams[eqId] || diagrams.pump;
+}
+
+// ─── UI UTILITIES ──────────────────────────────────────────
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(screen).classList.add('active');
+  if(screen==='menuScreen') { P.update(); stopAllTimers(); }
+  if(screen==='scScreen') { renderEqGrid(); renderScList(); }
+}
+
+function toast(msg, type='info') {
+  const d=document.createElement('div');
+  d.className='toast '+(type==='ok'?'ok':type==='warn'?'warn':type==='danger'?'danger':'');
+  d.textContent=msg;
+  $('toastWrap').appendChild(d);
+  setTimeout(()=>d.remove(),4200);
+}
+
+function openModal(title, body, btns=[]) {
+  $('mttl').textContent=title;
+  $('mbody').innerHTML=body;
+  $('mftr').innerHTML=btns.map(b=>`<button class="btn-m ${b.cls||''}" onclick="${b.fn}">${b.lbl}</button>`).join('');
+  $('moverlay').classList.add('open');
+}
+function closeModal(){$('moverlay').classList.remove('open');}
+
+// ─── SCENARIO SELECT ───────────────────────────────────────
+function renderEqGrid() {
+  $('eqGrid').innerHTML = EQUIPMENT.map(e=>`
+    <div class="eq-card ${S.eq===e.id?'sel':''}" onclick="selectEq('${e.id}')">
+      <div class="eq-ico">${e.icon}</div>
+      <div class="eq-name">${e.name}</div>
+      <div class="eq-desc">${e.desc}</div>
+      <div class="eq-tags">${e.tags.map(t=>`<div class="eq-tag">${t}</div>`).join('')}</div>
+    </div>`).join('');
+}
+
+function selectEq(id) {
+  S.eq=id; S.scId=null;
+  renderEqGrid(); renderScList(); updateLaunchBar();
+}
+
+function renderScList() {
+  if(!S.eq){$('scList').innerHTML=`<div style="font-family:var(--mono);font-size:.7rem;color:var(--text-3);padding:18px">SELECT EQUIPMENT TYPE ABOVE</div>`;return;}
+  const faults = FAULTS[S.eq];
+  $('scList').innerHTML = faults.map((f,i)=>`
+    <div class="sc-row ${S.scId===f.id?'sel':''}" onclick="selectSc('${f.id}')">
+      <div class="sc-num">0${i+1}</div>
+      <div>
+        <div class="sc-name">${f.name}</div>
+        <div class="sc-sub">${f.symptoms.slice(0,2).join(' · ')}</div>
+      </div>
+      <div class="diff ${f.diff}">${f.diff.toUpperCase()}</div>
+      <div class="sc-tag">EST. ${f.time}min</div>
+      ${f.secondaryFault?'<div class="sc-tag" style="color:var(--accent2)">+SEC FAULT</div>':'<div></div>'}
+    </div>`).join('');
+}
+
+function selectSc(id){ S.scId=id; renderScList(); updateLaunchBar(); }
+
+function selectMode(m) {
+  S.mode=m;
+  ['guided','assessment','expert'].forEach(x=>{
+    const el=$(` mb-${x}`)||$('mb-'+x);
+    if(el) el.classList.toggle('active',x===m);
+  });
+  updateLaunchBar();
+}
+
+function updateLaunchBar() {
+  const eq = EQUIPMENT.find(e=>e.id===S.eq);
+  const sc = S.eq ? FAULTS[S.eq]?.find(f=>f.id===S.scId) : null;
+  $('liEq').textContent = eq?.name||'—';
+  $('liSc').textContent = sc?.name||'—';
+  $('liMode').textContent = S.mode.toUpperCase();
+  $('liFaults').textContent = sc?.secondaryFault ? '2 (Multi-fault)' : sc ? '1 (Single fault)' : '—';
+  $('btnLaunch').disabled = !(S.eq && S.scId);
+}
+
+// ─── LAUNCH ────────────────────────────────────────────────
+function launchSim() {
+  if(!S.eq||!S.scId) return;
+  const scenario = generateScenario(S.eq, S.scId, S.mode);
+  Object.assign(S,{
+    scenario, health:100, safetyScore:100,
+    actions:0, totalCost:0, downtime:0,
+    budget: S.mode==='expert'?scenario.budget:999999,
+    budgetMax: S.mode==='expert'?scenario.budget:999999,
+    timerSec:0, timeLimit: S.mode==='assessment'?scenario.fault.time*60:S.mode==='expert'?Math.floor(scenario.fault.time*60*0.8):0,
+    diagSubmitted:false, diagCorrect:false, repairApplied:false, repairCorrect:false,
+    confidence:'high', inspected:new Set(), testsRun:new Set(), errors:[],
+    secondaryTriggered:false, workflowStep:0,
+    alarmLog:[...scenario.alarmLog],
+    falsePositives: scenario.falsePositives, missingData: scenario.missingData,
+    intermittent: scenario.intermittent,
+    charts:{}, activeTab:'sensors', playbackTime:0, playbackPlaying:false,
+  });
+
+  goTo('simScreen');
+  buildSim();
+  startTimers();
+}
+
+// ─── BUILD SIMULATOR ───────────────────────────────────────
+function buildSim() {
+  const sc = S.scenario;
+  const fault = sc.fault;
+  const isGuided = S.mode==='guided';
+  const isExpert = S.mode==='expert';
+
+  $('simName').textContent = fault.name;
+  const badge = $('simBadge');
+  badge.textContent = S.mode.toUpperCase()+' MODE';
+  badge.className = 'mode-badge '+S.mode;
+
+  $('budgetBar').classList.toggle('visible', isExpert);
+  updateBudget();
+
+  $('svgBox').innerHTML = getEquipmentSVG(S.eq, sc);
+  buildCompList();
+  buildActionsPanel();
+  buildRCASelect();
+  buildTabs();
+  showTab('sensors');
+  updateBottom();
+  updateHealthBar();
+  $('eqDot').className='sdot warn';
+  if(sc.alarmLog.some(a=>a.level==='critical')) {
+    setTimeout(()=>triggerAlarm(sc.alarmLog.find(a=>a.level==='critical').msg),2500);
+  }
+}
+
+function buildCompList() {
+  const sc = S.scenario;
+  const fault = sc.fault;
+  const isGuided = S.mode==='guided';
+  const comps = sc.components;
+  $('compList').innerHTML = comps.map(c=>{
+    const revealed = S.inspected.has(c.id);
+    const cls = revealed ? 'inspected-'+c.status : (fault.guidedHL.includes(c.id)&&!revealed?'anomaly':'');
+    const hintGlow = isGuided && fault.guidedHL.includes(c.id) && !revealed ? 'hint-glow' : '';
+    const cstatCls = revealed ? c.status : 'unk';
+    const cstatTxt = revealed ? c.status.toUpperCase() : '???';
+    const intermCls = S.intermittent?.sensor===c.id ? 'intermittent' : '';
+    return `<div class="comp-item ${cls} ${hintGlow} ${intermCls}" onclick="inspectComp('${c.id}')">
+      <div class="cico">${c.icon}</div>
+      <div class="cname">${c.name}</div>
+      <div class="cstat ${cstatCls}">${cstatTxt}</div>
+      ${S.scenario.missingData.has(c.id)?'<div class="noise-badge">NO DATA</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function buildActionsPanel() {
+  const isGuided = S.mode==='guided';
+  const isExpert = S.mode==='expert';
+  const fault = S.scenario.fault;
+  const repairs = REPAIRS[S.eq];
+
+  let html='';
+  // Workflow stepper (guided)
+  if(isGuided&&fault.workflow){
+    html+=`<div class="workflow">${fault.workflow.map((w,i)=>{
+      const done=i<S.workflowStep; const active=i===S.workflowStep;
+      return `<div class="wstep ${done?'done':active?'active':''}">
+        <div class="wstep-num">${done?'✓':i+1}</div>${w}</div>`;
+    }).join('')}</div>`;
+  }
+
+  // Hint
+  if(isGuided){
+    html+=`<div class="hint-box"><strong>GUIDED HINT:</strong> ${fault.hint}</div>`;
+  }
+
+  // Real-time score display
+  html+=`<div class="score-panel"><div class="sp-ttl">LIVE PERFORMANCE</div>
+    <div class="sp-row"><div class="sp-lbl">Diagnostic Accuracy</div><div class="sp-val" id="spDiag" style="color:var(--accent)">—</div></div>
+    <div class="sp-row"><div class="sp-lbl">Cost Efficiency</div><div class="sp-val" id="spCost" style="color:var(--accent)">—</div></div>
+    <div class="sp-row"><div class="sp-lbl">Safety Score</div><div class="sp-val" id="spSafe" style="color:var(--accent3)">${S.safetyScore}</div></div>
+    <div class="sp-row"><div class="sp-lbl">Time Score</div><div class="sp-val" id="spTime" style="color:var(--accent)">—</div></div>
+  </div>`;
+
+  // Secondary fault warning
+  html+=`<div class="sec-fault-warn" id="secFaultWarn">⚠ SECONDARY FAULT DEVELOPING: ${fault.secondaryFault||'N/A'} — address primary fault immediately</div>`;
+
+  // Cost estimator
+  html+=`<div class="cost-est">
+    <div class="sp-ttl" style="margin-bottom:7px">COST TRACKER</div>
+    <div class="ce-row"><span>Diagnostic tests</span><span id="ceDiag">$0</span></div>
+    <div class="ce-row"><span>Repair/downtime</span><span id="ceRepair">$0</span></div>
+    <div class="ce-total"><span>TOTAL</span><span id="ceTotal">$0</span></div>
+  </div>`;
+
+  html+=`<div class="ag-ttl">DIAGNOSTIC TESTS</div>`;
+  const tests=[
+    {id:'vib_test',   icon:'📡', lbl:'Vibration Analysis (FFT)', cost:150, desc:'Run full spectrum FFT'},
+    {id:'oil_sample', icon:'🧪', lbl:'Oil/Lubrication Sample',   cost:120, desc:'Send to lab — 2h turnaround'},
+    {id:'thermal_scan',icon:'🌡️',lbl:'Thermal Imaging Survey',   cost:200, desc:'Infrared scan all components'},
+    {id:'elec_test',  icon:'⚡', lbl:'Electrical Test (IR/MCSA)',cost:180, desc:'Insulation + current signature'},
+    {id:'align_check',icon:'🎯', lbl:'Alignment Measurement',    cost:250, desc:'Laser alignment check'},
+    {id:'oil_press',  icon:'🔧', lbl:'Oil Pressure / Flow Test', cost:130, desc:'Measure lube circuit pressure'},
+  ];
+  html+=tests.map(t=>`
+    <button class="act-btn ${S.testsRun.has(t.id)?'used':''} ${isGuided?'hl':''}" onclick="runTest('${t.id}',${t.cost})" ${S.testsRun.has(t.id)?'disabled':''}>
+      <span class="ai">${t.icon}</span>
+      <div><span>${t.lbl}</span><small>$${t.cost} · ${t.desc}</small></div>
+    </button>`).join('');
+
+  html+=`<div class="ag-ttl" style="margin-top:10px">REPAIR ACTIONS</div>`;
+  html+=repairs.map(r=>`
+    <button class="act-btn ${r.v==='monitor_only'?'dbtn':''}" onclick="openRepairModal('${r.v}','${r.l.replace(/'/g,"\\'")}',${r.cost},${r.dt})">
+      <span class="ai">🔩</span>
+      <div><span>${r.l}</span><small>$${r.cost.toLocaleString()} · ${r.dt}h downtime</small></div>
+    </button>`).join('');
+
+  $('actPanel').innerHTML=html;
+  updateLiveScore();
+}
+
+function buildRCASelect() {
+  const opts = DIAGNOSES[S.eq];
+  $('rcaSelect').innerHTML=`<option value="">— Select Root Cause —</option>`+
+    opts.map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+}
+
+function buildTabs() {
+  const tabs=[
+    {id:'sensors',   lbl:'LIVE SENSORS'},
+    {id:'vibration', lbl:'VIBRATION FFT'},
+    {id:'temperature',lbl:'TEMPERATURE'},
+    {id:'current',   lbl:'MOTOR CURRENT'},
+    {id:'health_idx',lbl:'HEALTH INDEX'},
+    {id:'lube',      lbl:'LUBRICATION'},
+    {id:'alarms',    lbl:'ALARM LOG'},
+    {id:'history',   lbl:'MAINT. LOG'},
+  ];
+  $('dataTabs').innerHTML=tabs.map(t=>`
+    <div class="dtab ${S.activeTab===t.id?'active':''}" onclick="showTab('${t.id}')">
+      ${t.lbl}${t.id==='alarms'&&S.alarmLog.some(a=>a.level==='critical')?'<span class="alert-pip"></span>':''}
+    </div>`).join('');
+}
+
+// ─── TABS ──────────────────────────────────────────────────
+function showTab(tab) {
+  S.activeTab=tab;
+  Object.values(S.charts).forEach(c=>{try{c.destroy();}catch(e){}});
+  S.charts={};
+  buildTabs();
+  const c=$('dataContent');
+
+  if(tab==='sensors')     c.innerHTML=renderSensors();
+  if(tab==='vibration')   { c.innerHTML=renderChartShell('vibration'); setTimeout(buildVibChart,80); }
+  if(tab==='temperature') { c.innerHTML=renderChartShell('temperature'); setTimeout(buildTempChart,80); }
+  if(tab==='current')     { c.innerHTML=renderChartShell('current'); setTimeout(buildCurrentChart,80); }
+  if(tab==='health_idx')  c.innerHTML=renderHealthIdx();
+  if(tab==='lube')        c.innerHTML=renderLube();
+  if(tab==='alarms')      { c.innerHTML=renderAlarmLog(); setupPlayback(); }
+  if(tab==='history')     c.innerHTML=renderMaintLog();
+
+  // Show/hide playback bar
+  $('playbackBar').style.display = tab==='alarms'?'flex':'none';
+}
+
+function renderSensors() {
+  const sc=S.scenario; const fault=sc.fault;
+  const sensors=fault.sensors;
+  const now=sc.sensorHistory;
+  let html=`<div class="sensor-grid">`;
+  for(const [k,s] of Object.entries(sensors)){
+    const isNoData=S.missingData.has(k);
+    const isFP=sc.falsePositives.has(k)&&!S.diagSubmitted;
+    const rawVal=now[k]?.[47]??s.base;
+    // Add sensor noise
+    const noise=(Math.random()-0.5)*Math.abs(s.base)*S.scenario.noiseLevel*0.5;
+    const val=isNoData?null:parseFloat((rawVal+noise).toFixed(1));
+    const isOver=val!==null&&val>s.norm[1];
+    const isNear=val!==null&&val>s.norm[1]*0.9;
+    const pct=val!==null?Math.min(100,Math.max(0,(val/s.norm[1])*100)):0;
+    const valCls=isOver?'danger':isNear?'warn':'';
+    const cardCls=isOver?'danger':isNear?'anomaly':isNoData?'nodata':'';
+    html+=`<div class="sc ${cardCls}">
+      ${isFP?`<div class="fp-badge">FP?</div>`:''}
+      <div class="sv ${valCls}${S.scenario.noiseLevel>.1?' noise':''}">${isNoData?'N/A':val}</div>
+      <div class="su">${s.unit}</div>
+      <div class="sn">${s.label||k.toUpperCase()}</div>
+      <div class="sbar"><div class="sbf" style="width:${pct}%;background:${isOver?'var(--danger)':isNear?'var(--warn)':'var(--accent)'}"></div></div>
+      <div class="slimit">NORM: ${s.norm[0]}–${s.norm[1]} ${s.unit}</div>
+    </div>`;
+  }
+  html+=`</div><div style="font-family:var(--mono);font-size:.58rem;color:var(--text-3);margin-top:6px">LIVE SCADA · ${new Date().toLocaleTimeString()} · SCAN: 1Hz${S.scenario.noiseLevel>.1?' · NOTE: HIGH NOISE — possible sensor issue':''}</div>`;
+  if(sc.falsePositives.size>0){
+    html+=`<div style="font-family:var(--mono);font-size:.62rem;color:var(--purple);background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.2);padding:8px 12px;margin-top:8px">⚠ FP ALERT: One or more sensors may be showing false positive readings. Verify against physical inspection.</div>`;
+  }
+  if(S.mode==='expert'&&S.scenario.intermittent){
+    html+=`<div style="font-family:var(--mono);font-size:.62rem;color:var(--warn);background:rgba(255,196,0,.05);border:1px solid rgba(255,196,0,.2);padding:8px 12px;margin-top:8px">⚡ INTERMITTENT FAULT: Readings fluctuating at ~${S.scenario.intermittent.interval}s intervals. Trend analysis recommended.</div>`;
+  }
+  return html;
+}
+
+function renderChartShell(type) {
+  return `
+    <div class="chart-card">
+      <div class="chart-hdr">
+        <div class="chart-ttl">${type.toUpperCase()} TREND — 48H</div>
+        <div class="chart-actions">
+          <button class="ca-btn" onclick="resetZoom('main')">RESET ZOOM</button>
+          <button class="ca-btn" onclick="toggleOverlay()">OVERLAY</button>
+        </div>
+        <div class="chart-live" id="chartLive">—</div>
+      </div>
+      <div class="chart-body" style="height:160px"><canvas id="mainChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-hdr">
+        <div class="chart-ttl">${type==='vibration'?'FFT SPECTRUM (FREQUENCY DOMAIN)':type==='temperature'?'MULTI-POINT COMPARISON':'3-PHASE BALANCE'}</div>
+        <div class="chart-actions"><button class="ca-btn" onclick="resetZoom('sec')">RESET ZOOM</button></div>
+      </div>
+      <div class="chart-body" style="height:150px"><canvas id="secChart"></canvas></div>
+    </div>`;
+}
+
+let showOverlay=false;
+function toggleOverlay(){showOverlay=!showOverlay;showTab(S.activeTab);}
+function resetZoom(which){ const c=which==='main'?S.charts.main:S.charts.sec; if(c?.resetZoom)c.resetZoom();}
+
+function chartOpts(unit,max,zoom=true){
+  const zoomCfg=zoom?{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'xy'},pan:{enabled:true,mode:'xy'}}:{};
+  return{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{labels:{color:'#6a93a8',font:{family:'Share Tech Mono',size:9},boxWidth:10}},
+      zoom:zoomCfg
+    },
+    scales:{
+      x:{ticks:{color:'#2e4d5e',font:{family:'Share Tech Mono',size:8},maxTicksLimit:8},grid:{color:'rgba(26,45,58,.6)'},border:{color:'#1a2d3a'}},
+      y:{ticks:{color:'#2e4d5e',font:{family:'Share Tech Mono',size:8}},grid:{color:'rgba(26,45,58,.6)'},border:{color:'#1a2d3a'},max,beginAtZero:true}
+    }
+  };
+}
+
+function buildVibChart(){
+  const sc=S.scenario; const fault=sc.fault;
+  const vib=sc.sensorHistory.vib_de??sc.sensorHistory.vib??sc.sensorHistory.vib_gb??[];
+  const labels=Array.from({length:48},(_,i)=>`${47-i}h`).reverse();
+  const ctx=$('mainChart')?.getContext('2d');
+  if(!ctx)return;
+
+  const datasets=[{
+    label:'Vibration (mm/s)',data:vib,
+    borderColor:vib[47]>7?'#ff1a3a':'#00d4ff',
+    backgroundColor:vib[47]>7?'rgba(255,26,58,.06)':'rgba(0,212,255,.06)',
+    tension:.4,pointRadius:0,borderWidth:1.5,fill:true
+  }];
+  // Overlay: normal limit line
+  if(showOverlay){
+    const norm=Object.values(fault.sensors).find(s=>s.unit==='mm/s')?.norm[1]||7;
+    datasets.push({label:'Alarm Limit',data:labels.map(()=>norm),borderColor:'rgba(255,26,58,.4)',borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false});
+  }
+
+  S.charts.main=new Chart(ctx,{type:'line',data:{labels,datasets},options:chartOpts('mm/s',Math.max(vib[47]*1.4,10))});
+  const lv=$('chartLive');
+  if(lv){lv.textContent=(vib[47]||0).toFixed(2)+' mm/s';lv.className='chart-live '+(vib[47]>7?'danger':vib[47]>5?'warn':'');}
+
+  // FFT
+  const fftLabels=['0.5x','1x','1.5x','2x','BPFO','BPFI','BSF','FTF','GMF'];
+  const fftData=fault.fftProfile.map(v=>parseFloat((v*(0.8+sc.severity*.6)+sc.noiseLevel*(Math.random()-.3)).toFixed(2)));
+  const ctx2=$('secChart')?.getContext('2d');
+  if(!ctx2)return;
+  S.charts.sec=new Chart(ctx2,{
+    type:'bar',
+    data:{labels:fftLabels,datasets:[{label:'Amplitude (mm/s)',data:fftData,
+      backgroundColor:fftData.map(v=>v>3?'rgba(255,26,58,.65)':v>1?'rgba(255,196,0,.65)':'rgba(0,212,255,.45)'),borderWidth:0}]},
+    options:chartOpts('mm/s',Math.max(...fftData)*1.4)
+  });
+}
+
+function buildTempChart(){
+  const sc=S.scenario; const fault=sc.fault;
+  const tKey=Object.keys(sc.sensorHistory).find(k=>k.includes('temp'));
+  const temps=sc.sensorHistory[tKey]||[];
+  const labels=Array.from({length:48},(_,i)=>`${47-i}h`).reverse();
+  const ctx=$('mainChart')?.getContext('2d');
+  if(!ctx)return;
+  const limitVal=Object.values(fault.sensors).find(s=>s.unit==='°C')?.norm[1]||85;
+  const datasets=[{
+    label:'Primary Temp (°C)',data:temps,
+    borderColor:temps[47]>limitVal?'#ff1a3a':temps[47]>limitVal*.9?'#ffc400':'#00d4ff',
+    backgroundColor:'transparent',tension:.4,pointRadius:0,borderWidth:1.5
+  }];
+  if(showOverlay) datasets.push({label:'Alarm Limit',data:labels.map(()=>limitVal),borderColor:'rgba(255,26,58,.35)',borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false});
+  S.charts.main=new Chart(ctx,{type:'line',data:{labels,datasets},options:chartOpts('°C',temps[47]*1.3+20)});
+  const lv=$('chartLive');
+  if(lv){lv.textContent=Math.round(temps[47]||0)+'°C';lv.className='chart-live '+(temps[47]>limitVal?'danger':temps[47]>limitVal*.9?'warn':'');}
+
+  // Multi-point
+  const ptLabels=['Ambient','Component A','Component B','Component C','Process'];
+  const ptVals=[28,temps[47]||60,Math.max(28,(temps[47]||60)*0.75),Math.max(28,(temps[47]||60)*0.6),38];
+  const ctx2=$('secChart')?.getContext('2d');
+  if(!ctx2)return;
+  S.charts.sec=new Chart(ctx2,{type:'bar',data:{labels:ptLabels,datasets:[{label:'°C',data:ptVals,backgroundColor:ptVals.map(v=>v>limitVal?'rgba(255,26,58,.65)':v>limitVal*.9?'rgba(255,196,0,.65)':'rgba(0,212,255,.45)'),borderWidth:0}]},options:chartOpts('°C',Math.max(...ptVals)*1.3)});
+}
+
+function buildCurrentChart(){
+  const sc=S.scenario; const fault=sc.fault;
+  const cKey=Object.keys(sc.sensorHistory).find(k=>k.includes('curr'));
+  const currData=sc.sensorHistory[cKey]||[];
+  const labels=Array.from({length:48},(_,i)=>`${47-i}h`).reverse();
+  const ctx=$('mainChart')?.getContext('2d');
+  if(!ctx)return;
+  const isImbal=fault.id==='elec_imbalance'||fault.id==='phase_imbalance';
+  const cA=currData; const cB=currData.map(v=>v*(isImbal?.93:.995)); const cC=currData.map(v=>v*(isImbal?.88:1.002));
+  const datasets=[
+    {label:'Phase A',data:cA,borderColor:'#ff1a3a',tension:.4,pointRadius:0,borderWidth:1.5,fill:false},
+    {label:'Phase B',data:cB,borderColor:'#00d4ff',tension:.4,pointRadius:0,borderWidth:1.5,fill:false},
+    {label:'Phase C',data:cC,borderColor:'#2dff6e',tension:.4,pointRadius:0,borderWidth:1.5,fill:false},
+  ];
+  S.charts.main=new Chart(ctx,{type:'line',data:{labels,datasets},options:chartOpts('A',(currData[47]||90)*1.3)});
+  const lv=$('chartLive');
+  if(lv){lv.textContent=(currData[47]||0).toFixed(1)+' A';lv.className='chart-live '+(currData[47]>90?'danger':currData[47]>80?'warn':'');}
+
+  const phases=['Phase A','Phase B','Phase C'];
+  const ctx2=$('secChart')?.getContext('2d');
+  if(!ctx2)return;
+  const phVals=[cA[47]||0,cB[47]||0,cC[47]||0];
+  S.charts.sec=new Chart(ctx2,{type:'bar',data:{labels:phases,datasets:[{label:'Current (A)',data:phVals,backgroundColor:['rgba(255,26,58,.6)','rgba(0,212,255,.5)','rgba(45,255,110,.5)'],borderWidth:0}]},options:chartOpts('A',Math.max(...phVals)*1.4)});
+}
+
+function renderHealthIdx(){
+  const h=Math.round(S.health);
+  const bars=[
+    {l:'Mechanical Condition',v:clamp(h+(Math.random()-0.5)*10,0,100)},
+    {l:'Lubrication Status',  v:clamp(h*0.95+(Math.random()-0.5)*8,0,100)},
+    {l:'Electrical Health',   v:clamp(h*1.02+(Math.random()-0.5)*5,0,100)},
+    {l:'Structural Integrity',v:clamp(h*0.98+(Math.random()-0.5)*5,0,100)},
+    {l:'Safety Compliance',   v:S.safetyScore},
+  ];
+  const overall=Math.round(bars.reduce((s,b)=>s+b.v,0)/bars.length);
+  return `<div class="hi-meter">
+    <svg class="hi-gauge" viewBox="0 0 80 80">
+      <circle cx="40" cy="40" r="32" fill="none" stroke="#1a2d3a" stroke-width="8"/>
+      <circle cx="40" cy="40" r="32" fill="none" stroke="${h>60?'#2dff6e':h>30?'#ffc400':'#ff1a3a'}" stroke-width="8"
+        stroke-dasharray="${Math.round(h*2.01)} 201" stroke-dashoffset="50" transform="rotate(-90 40 40)"/>
+      <text x="40" y="44" fill="${h>60?'#2dff6e':h>30?'#ffc400':'#ff1a3a'}" font-family="Share Tech Mono" font-size="14" text-anchor="middle" font-weight="bold">${h}%</text>
+    </svg>
+    <div class="hi-details">
+      <div class="hi-title">EQUIPMENT HEALTH INDEX</div>
+      <div class="hi-sub">Overall: ${overall}% · Safety: ${S.safetyScore}%<br>Actions taken: ${S.actions} · Est. downtime: ${S.downtime}h</div>
+    </div>
+  </div>
+  <div class="hi-bars">${bars.map(b=>`
+    <div class="hi-bar-row">
+      <div class="hi-bar-lbl">${b.l}</div>
+      <div class="hi-track"><div class="hi-fill" style="width:${Math.round(b.v)}%;background:${b.v>60?'var(--accent3)':b.v>30?'var(--warn)':'var(--danger)'}"></div></div>
+      <div class="hi-pct" style="color:${b.v>60?'var(--accent3)':b.v>30?'var(--warn)':'var(--danger)'}">${Math.round(b.v)}%</div>
+    </div>`).join('')}</div>`;
+}
+
+function renderLube(){
+  const sc=S.scenario; const fault=sc.fault;
+  const isOilFault=['lube_starvation','lubrication_failure','gearbox_failure','lube_degradation'].includes(fault.correctDiag);
+  const rows=[
+    {p:'Viscosity @ 40°C', v:isOilFault?rndInt(38,52):rndInt(62,76), unit:'cSt', limit:'61.2 – 74.8', ok:(v)=>v>60&&v<76},
+    {p:'Water Content',    v:isOilFault?rnd(0.18,0.35):rnd(0.02,0.06), unit:'%', limit:'< 0.1%', ok:(v)=>v<0.1},
+    {p:'Oxidation (AN)',   v:isOilFault?rnd(6.2,11.4):rnd(1.1,2.8), unit:'mgKOH/g', limit:'< 4', ok:(v)=>v<4},
+    {p:'Metal Particles Fe',v:sc.sensorHistory.oil_fe?.[47]??rndInt(12,40), unit:'ppm', limit:'< 50', ok:(v)=>v<50},
+    {p:'Copper (Cu)',      v:sc.fault.id==='bearing_cage'?rndInt(80,180):rndInt(2,12), unit:'ppm', limit:'< 15', ok:(v)=>v<15},
+    {p:'ISO Cleanliness',  v:isOilFault?'19/18/15':'16/15/12', unit:'code', limit:'≤ 17/16/13', ok:(v)=>v==='16/15/12'},
+  ];
+  let html=`<table class="lube-tbl"><thead><tr><th>PARAMETER</th><th>VALUE</th><th>LIMIT</th><th>STATUS</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const ov=parseFloat(r.v);const isOk=isNaN(ov)?r.v.includes('16'):r.ok(ov);const cls=isOk?'ok':ov<(parseFloat(r.limit)*1.2||50)?'warn':'bad';
+    html+=`<tr><td>${r.p}</td><td class="${cls}">${r.v} ${r.unit}</td><td>${r.limit} ${r.unit}</td><td class="${cls}">${isOk?'OK':cls==='warn'?'WARN':'FAIL'}</td></tr>`;
+  });
+  html+=`</tbody></table>`;
+  return html;
+}
+
+function renderAlarmLog(){
+  if(!S.alarmLog.length) S.alarmLog=[...S.scenario.alarmLog];
+  return `<div class="alarm-log-wrap" id="alarmLogWrap">${S.alarmLog.map(a=>`
+    <div class="ale ${a.fake?'false-pos':a.level}">
+      <div class="ale-time">${a.time}</div>
+      <div class="ale-code">${a.code}</div>
+      <div class="ale-msg">${a.msg}</div>
+      ${a.fake?'<div class="ale-tag">FP</div>':''}
+    </div>`).join('')}</div>`;
+}
+
+function renderMaintLog(){
+  const ml=S.scenario.maintLog;
+  return `<div class="maint-list">${ml.map(e=>`
+    <div class="mlog">
+      <div class="mlog-date">${e.date}</div>
+      <div class="mlog-tech">TECH: ${e.tech}</div>
+      <div class="mlog-desc">${e.desc}</div>
+      ${e.flag?`<div class="mlog-flag">⚠ ${e.flag}</div>`:''}
+    </div>`).join('')}</div>`;
+}
+
+// ─── PLAYBACK ──────────────────────────────────────────────
+let pbInterval=null;
+function setupPlayback(){
+  $('playbackBar').style.display='flex';
+  $('pbFill').style.width='100%';
+  $('pbTime').textContent='LIVE';
+}
+function togglePlayback(){
+  const btn=$('pbPlay');
+  if(S.playbackPlaying){
+    clearInterval(pbInterval); S.playbackPlaying=false;
+    btn.textContent='▶ PLAY'; btn.classList.remove('active');
+  } else {
+    S.playbackPlaying=true; btn.textContent='⏸ PAUSE'; btn.classList.add('active');
+    let t=0;
+    pbInterval=setInterval(()=>{
+      t+=2; if(t>48){t=0;}
+      $('pbFill').style.width=(t/48*100)+'%';
+      $('pbTime').textContent=`T+${t}h`;
+    },500);
+  }
+}
+function seekTimeline(e){
+  const track=e.currentTarget; const rect=track.getBoundingClientRect();
+  const pct=(e.clientX-rect.left)/rect.width;
+  $('pbFill').style.width=(pct*100)+'%';
+  $('pbTime').textContent=`T+${Math.round(pct*48)}h`;
+}
+
+// ─── INSPECT COMPONENT ────────────────────────────────────
+function inspectComp(id){
+  const sc=S.scenario; const comp=sc.components.find(c=>c.id===id);
+  if(!comp) return;
+  S.inspected.add(id); S.actions++; S.totalCost+=50;
+  const res=generateInspectResult(id, sc);
+  comp.status=res.status; comp.revealed=true;
+  buildCompList(); updateBottom(); updateBudget();
+  if(S.mode==='guided') { if(sc.fault.guidedHL.includes(id)&&S.workflowStep<2) { S.workflowStep=Math.max(S.workflowStep,1); buildActionsPanel(); } }
+
+  const sCls=res.status==='ok'?'ok':res.status==='warn'?'warn':'fault';
+  openModal(`INSPECTION: ${comp.name.toUpperCase()}`,
+    `<div class="ir-status ${sCls}">${res.status.toUpperCase()}</div>
+     <div class="ir-body ${sCls}">${res.text}</div>`,
+    [{lbl:'CLOSE',fn:'closeModal()',cls:''}]
+  );
+  addAlarm('info',`INSP-${id.slice(0,4).toUpperCase()}`,`Component inspected: ${comp.name} — ${res.status.toUpperCase()}`);
+  toast(`Inspection: ${comp.name} — ${res.status.toUpperCase()}`,res.status==='fault'?'danger':res.status==='warn'?'warn':'ok');
+  updateLiveScore();
+}
+
+// ─── RUN TEST ──────────────────────────────────────────────
+function runTest(id,cost){
+  if(S.testsRun.has(id)) return;
+  S.testsRun.add(id); S.actions++; S.totalCost+=cost;
+  updateBottom(); updateBudget(); updateLiveScore();
+  if(S.mode==='guided') { S.workflowStep=Math.max(S.workflowStep,2); buildActionsPanel(); }
+
+  const msgs={
+    vib_test:`Vibration analysis complete. Check VIBRATION FFT tab for spectrum results.`,
+    oil_sample:`Oil sample dispatched. Results in LUBRICATION tab.`,
+    thermal_scan:`Thermal survey complete. ${S.scenario.fault.guidedHL.length} components showing elevated temperature.`,
+    elec_test:`Electrical test complete. IR and current signature results available.`,
+    align_check:`Alignment measurement complete. Results in maintenance report.`,
+    oil_press:`Oil pressure test complete. Refer to LUBRICATION tab.`,
+  };
+  toast(msgs[id]||'Test complete','ok');
+  addAlarm('info',`TEST-${id.slice(0,4).toUpperCase()}`,msgs[id]||'Diagnostic test performed');
+
+  // Navigate to relevant tab
+  const tabMap={vib_test:'vibration',oil_sample:'lube',thermal_scan:'temperature',elec_test:'current',oil_press:'lube'};
+  if(tabMap[id]) showTab(tabMap[id]);
+  else buildActionsPanel();
+}
+
+// ─── REPAIR MODAL ──────────────────────────────────────────
+function openRepairModal(v,l,cost,dt){
+  const r=REPAIRS[S.eq].find(r=>r.v===v);
+  const adjCost=S.mode==='expert'?Math.round(cost*(0.9+Math.random()*0.25)):cost;
+  openModal('CONFIRM REPAIR ACTION',
+    `<div style="font-family:var(--disp);font-weight:700;font-size:1.05rem;margin-bottom:10px">${l}</div>
+     <div class="ropt-meta" style="font-size:.72rem;margin-bottom:12px">
+       Estimated Cost: <span>$${adjCost.toLocaleString()}</span> · Planned Downtime: <span>${dt}h</span>
+       ${S.mode==='expert'?`<br><span style="color:var(--purple)">Budget remaining: $${(S.budget-S.totalCost).toLocaleString()}</span>`:''}
+     </div>
+     ${S.mode==='expert'&&(S.totalCost+adjCost)>S.budget?
+       `<div style="font-family:var(--mono);font-size:.68rem;color:var(--danger);background:rgba(255,26,58,.08);border:1px solid rgba(255,26,58,.3);padding:8px 12px;margin-bottom:12px">
+        ⛔ THIS ACTION EXCEEDS YOUR BUDGET. Budget penalty will apply.</div>`:''}
+     <div style="font-family:var(--mono);font-size:.65rem;color:var(--warn);background:rgba(255,196,0,.05);border:1px solid rgba(255,196,0,.2);padding:9px 12px">
+       ⚠ Verify diagnosis before applying repair. Incorrect repair will escalate damage and cost.
+     </div>`,
+    [
+      {lbl:'CANCEL',fn:'closeModal()'},
+      {lbl:'APPLY REPAIR',fn:`applyRepair('${v}',${adjCost},${dt})`,cls:'conf'},
+    ]
+  );
+}
+
+function applyRepair(v,cost,dt){
+  closeModal();
+  S.actions++; S.totalCost+=cost; S.downtime+=dt;
+  S.repairApplied=true;
+  const correct=v===S.scenario.fault.correctRepair;
+  S.repairCorrect=correct;
+  updateBottom(); updateBudget();
+  if(correct){
+    toast('Correct repair applied — equipment recovering!','ok');
+    S.health=Math.min(100,S.health+35);
+    $('eqDot').className='sdot ok';
+    addAlarm('info','REPAIR-OK','Correct repair action applied — recovery in progress');
+    if(S.mode==='guided') {S.workflowStep=fault?.workflow?.length||5; buildActionsPanel();}
+  } else {
+    toast('Incorrect repair — fault escalating!','danger');
+    S.health=Math.max(5,S.health-25);
+    S.safetyScore=Math.max(10,S.safetyScore-20);
+    S.errors.push(`Incorrect repair applied: "${REPAIRS[S.eq].find(r=>r.v===v)?.l||v}" — correct was "${REPAIRS[S.eq].find(r=>r.v===S.scenario.fault.correctRepair)?.l||'?'}"`);
+    addAlarm('critical','REPAIR-ERR','Incorrect repair applied — fault unresolved or worsened');
+  }
+  updateHealthBar(); updateLiveScore();
+  if(S.diagSubmitted&&correct) setTimeout(endSession,1200);
+}
+
+// ─── DIAGNOSIS ────────────────────────────────────────────
+function setConfidence(el){
+  S.confidence=el.dataset.conf;
+  document.querySelectorAll('.dc-opt').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function submitDiag(){
+  const sel=$('rcaSelect').value;
+  if(!sel){toast('Please select a root cause diagnosis','warn');return;}
+  S.diagSubmitted=true; S.actions++;
+  const fault=S.scenario.fault;
+  S.diagCorrect=sel===fault.correctDiag;
+  updateBottom(); updateLiveScore();
+  const selLabel=DIAGNOSES[S.eq].find(d=>d.v===sel)?.l||sel;
+  const confPenalty=S.confidence==='low'?5:S.confidence==='medium'?0:-2;
+  if(S.diagCorrect){
+    const confMsg=S.confidence==='high'?' — High confidence: +bonus':'';
+    toast(`✓ DIAGNOSIS CORRECT${confMsg} — Now apply the correct repair action`,'ok');
+    addAlarm('info','DIAG-OK','Correct diagnosis submitted: '+selLabel);
+    if(S.mode==='guided') {S.workflowStep=Math.max(S.workflowStep,(fault.workflow?.length||5)-1); buildActionsPanel();}
+  } else {
+    S.health=Math.max(20,S.health-12);
+    S.safetyScore=Math.max(30,S.safetyScore-15);
+    S.errors.push(`Incorrect diagnosis: "${selLabel}" — correct answer was "${DIAGNOSES[S.eq].find(d=>d.v===fault.correctDiag)?.l||'?'}"`);
+    toast('✗ INCORRECT DIAGNOSIS — re-analyse data carefully','danger');
+    addAlarm('warning','DIAG-FAIL','Incorrect diagnosis submitted: '+selLabel);
+    updateHealthBar();
+  }
+  updateLiveScore();
+  if(S.repairApplied&&S.repairCorrect&&S.diagCorrect) endSession();
+}
+
+// ─── LIVE SCORE ───────────────────────────────────────────
+function updateLiveScore(){
+  const diagS=S.diagSubmitted?(S.diagCorrect?100:35):50;
+  const timeS=S.mode==='assessment'&&S.timeLimit>0?Math.max(20,100-Math.floor(S.timerSec/S.timeLimit*80)):Math.max(30,100-Math.floor(S.timerSec/60)*3);
+  const costS=Math.max(20,100-Math.floor(S.totalCost/1000)*4);
+  const total=Math.round(diagS*.35+timeS*.2+costS*.15+S.safetyScore*.2+(Math.round(S.health))*.1);
+  $('liveScore').textContent=total+'%';
+  $('liveScore').style.color=total>=80?'var(--accent3)':total>=60?'var(--warn)':'var(--danger)';
+  const sp=$('spDiag'); if(sp){sp.textContent=diagS+'%'; sp.style.color=diagS>=80?'var(--accent3)':diagS>=60?'var(--warn)':'var(--danger)';}
+  const sc=$('spCost'); if(sc){sc.textContent=costS+'%'; sc.style.color=costS>=80?'var(--accent3)':costS>=60?'var(--warn)':'var(--danger)';}
+  const ss=$('spSafe'); if(ss){ss.textContent=S.safetyScore; ss.style.color=S.safetyScore>=80?'var(--accent3)':S.safetyScore>=60?'var(--warn)':'var(--danger)';}
+  const st=$('spTime'); if(st){st.textContent=timeS+'%'; st.style.color=timeS>=80?'var(--accent3)':timeS>=60?'var(--warn)':'var(--danger)';}
+  $('bbSafe').textContent=S.safetyScore; $('bbSafe').style.color=S.safetyScore>=80?'var(--accent3)':S.safetyScore>=60?'var(--warn)':'var(--danger)';
+  // Cost tracker
+  const cd=$('ceDiag'); if(cd) cd.textContent='$'+(S.testsRun.size*150).toLocaleString();
+  const cr=$('ceRepair'); if(cr) cr.textContent='$'+(S.totalCost-(S.testsRun.size*150)).toLocaleString();
+  const ct=$('ceTotal'); if(ct) ct.textContent='$'+S.totalCost.toLocaleString();
+}
+
+// ─── TIMERS ───────────────────────────────────────────────
+function startTimers(){
+  S.timerInterval=setInterval(()=>{
+    S.timerSec++;
+    const m=String(Math.floor(S.timerSec/60)).padStart(2,'0');
+    const s=String(S.timerSec%60).padStart(2,'0');
+    $('simTimer').textContent=m+':'+s;
+    if(S.timeLimit>0){
+      const rem=S.timeLimit-S.timerSec;
+      if(rem<60) $('simTimer').classList.add('urgent');
+      if(rem<=0) endSession();
+    }
+    updateLiveScore();
+  },1000);
+
+  S.healthInterval=setInterval(()=>{
+    if(!S.repairApplied||!S.repairCorrect){
+      S.health=Math.max(8,S.health-0.4);
+      S.safetyScore=Math.max(10,S.safetyScore-0.2);
+      updateHealthBar(); updateLiveScore();
+      // Trigger secondary fault
+      if(!S.secondaryTriggered&&S.health<S.scenario.secFaultThreshold*100&&S.scenario.fault.secondaryFault){
+        S.secondaryTriggered=true;
+        const secEl=$('secFaultWarn'); if(secEl) secEl.classList.add('show');
+        triggerAlarm(`SECONDARY FAULT DEVELOPING: ${S.scenario.fault.secondaryFault} — address primary fault NOW`);
+        addAlarm('critical','SEC-FAULT',`Secondary fault triggered: ${S.scenario.fault.secondaryFault}`);
+        S.safetyScore=Math.max(10,S.safetyScore-15);
+        S.errors.push(`Secondary fault triggered due to delayed intervention (${S.scenario.fault.secondaryFault})`);
+        toast(`⚠ Secondary fault: ${S.scenario.fault.secondaryFault}`,'danger');
+      }
+    }
+  },7000);
+}
+
+function stopAllTimers(){
+  clearInterval(S.timerInterval); clearInterval(S.healthInterval); clearInterval(pbInterval);
+}
+
+function updateHealthBar(){
+  const h=Math.round(S.health);
+  const hb=$('hBar'); const hv=$('hVal');
+  if(!hb) return;
+  hb.style.width=h+'%';
+  hb.style.background=h>60?'var(--accent3)':h>30?'var(--warn)':'var(--danger)';
+  hv.textContent=h+'%'; hv.style.color=hb.style.background;
+  $('eqDot').className='sdot '+(h>60?'ok':h>30?'warn':'bad');
+}
+
+function updateBudget(){
+  if(S.mode!=='expert') return;
+  const rem=S.budget-S.totalCost;
+  const pct=Math.max(0,(rem/S.budget)*100);
+  $('budgetFill').style.width=pct+'%';
+  $('budgetFill').style.background=pct>40?'var(--purple)':pct>20?'var(--warn)':'var(--danger)';
+  $('budgetVal').textContent='$'+Math.max(0,rem).toLocaleString()+' remaining';
+}
+
+function updateBottom(){
+  $('bbAct').textContent=S.actions;
+  $('bbCost').textContent='$'+S.totalCost.toLocaleString();
+  $('bbDT').textContent=S.downtime+'h';
+  const hint=$('botHint');
+  if(hint){
+    if(S.mode==='guided') hint.innerHTML=`<span>GUIDED:</span> ${S.scenario.fault.hint}`;
+    else if(S.mode==='expert') hint.innerHTML=`<span>EXPERT:</span> Multi-fault scenario. Budget: $${(S.budget-S.totalCost).toLocaleString()} remaining.`;
+    else hint.innerHTML=`Assessment mode — no hints available.`;
+  }
+}
+
+function triggerAlarm(msg){
+  $('alarmTxt').textContent=msg;
+  $('alarmStrip').classList.add('on');
+  setTimeout(()=>$('alarmStrip').classList.remove('on'),9000);
+}
+
+function addAlarm(level,code,msg){
+  const t=new Date(); const time=`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+  S.alarmLog.push({time,code,level,msg,fake:false});
+  if(S.activeTab==='alarms') showTab('alarms');
+  buildTabs();
+}
+
+// ─── END SESSION ──────────────────────────────────────────
+function endSession(){
+  stopAllTimers();
+  const diagScore=S.diagCorrect?100:S.diagSubmitted?30:10;
+  const confBonus=S.diagCorrect&&S.confidence==='high'?5:0;
+  const timeScore=S.timeLimit>0?Math.max(15,100-Math.floor(S.timerSec/S.timeLimit*85)):Math.max(20,100-Math.floor(S.timerSec/30)*4);
+  const costScore=Math.max(15,100-Math.floor(S.totalCost/800)*4);
+  const safetyScore=S.safetyScore;
+  const downtimeScore=Math.max(20,100-S.downtime*3);
+  const secPrev=S.secondaryTriggered?60:100;
+  const total=Math.round((diagScore+confBonus)*.3+timeScore*.2+costScore*.15+safetyScore*.2+downtimeScore*.1+secPrev*.05);
+  const grade=total>=92?'A+':total>=82?'A':total>=72?'B':total>=60?'C':'D';
+
+  // Save
+  const p=P.load(); p.sessions++; p.scores.push(total); P.save(p);
+
+  // Render results
+  $('resTitle').textContent=S.diagCorrect?'CORRECT DIAGNOSIS':'SESSION COMPLETE';
+  $('resSubtitle').textContent=S.scenario.fault.name+' — '+S.scenario.eq.name;
+  $('resGrade').textContent=grade;
+  $('resGrade').style.color=total>=80?'var(--accent3)':total>=60?'var(--warn)':'var(--danger)';
+
+  const bars=[
+    {l:'Diagnostic Accuracy',s:diagScore+confBonus},
+    {l:'Time to Resolution',s:timeScore},
+    {l:'Cost Efficiency',s:costScore},
+    {l:'Safety Compliance',s:safetyScore},
+    {l:'Downtime Impact',s:downtimeScore},
+    {l:'Secondary Fault Prevention',s:secPrev},
+  ];
+  $('scoreBars').innerHTML=bars.map(b=>`<div class="srow">
+    <div class="slbl">${b.l}</div>
+    <div class="strk"><div class="sfill" style="width:${b.s}%;background:${b.s>=80?'var(--accent3)':b.s>=60?'var(--warn)':'var(--danger)'}"></div></div>
+    <div class="spct" style="color:${b.s>=80?'var(--accent3)':b.s>=60?'var(--warn)':'var(--danger)'}">${b.s}%</div>
+  </div>`).join('');
+
+  $('resStats').innerHTML=[
+    {v:total+'%', l:'TOTAL SCORE'},
+    {v:`${Math.floor(S.timerSec/60)}m ${S.timerSec%60}s`, l:'TIME'},
+    {v:'$'+S.totalCost.toLocaleString(), l:'TOTAL COST'},
+    {v:S.downtime+'h', l:'DOWNTIME'},
+  ].map(r=>`<div class="rst"><div class="rstv">${r.v}</div><div class="rstl">${r.l}</div></div>`).join('');
+
+  const verdicts={
+    'A+':'Outstanding. Rapid, accurate diagnosis with minimal resource expenditure. No secondary faults triggered. Professional-grade performance.',
+    'A':'Excellent performance. Fault correctly identified with efficient diagnostic process and good cost/downtime management.',
+    'B':'Good performance. Correct conclusion reached but some inefficiency in approach. Review time management.',
+    'C':'Acceptable. Correct answer reached with notable inefficiency. More systematic diagnostic approach recommended.',
+    'D':'Below standard. Incorrect or delayed diagnosis caused avoidable damage. Review fault signatures for this equipment type.',
+  };
+  $('resVerdict').textContent=verdicts[grade];
+
+  const errs=$('resErrors');
+  if(S.errors.length){
+    errs.innerHTML=`<div class="re-ttl">ERRORS TO REVIEW</div>`+S.errors.map(e=>`<div class="re-item">• ${e}</div>`).join('');
+  } else {
+    errs.innerHTML='';
+  }
+
+  goTo('resScreen');
+}
+
+function nextScenario(){
+  const faults=FAULTS[S.eq];
+  const cur=faults.findIndex(f=>f.id===S.scId);
+  const next=faults[(cur+1)%faults.length];
+  S.scId=next.id;
+  launchSim();
+}
+
+// ─── ABORT ────────────────────────────────────────────────
+function confirmAbort(){
+  openModal('ABORT SESSION',
+    `<div style="font-size:.82rem;color:var(--text-2)">Abort this session? No score will be recorded.</div>`,
+    [{lbl:'CONTINUE',fn:'closeModal()'},{lbl:'ABORT',fn:'doAbort()',cls:'dang'}]
+  );
+}
+function doAbort(){ closeModal(); stopAllTimers(); goTo('menuScreen'); }
+
+// ─── PROFILE / HELP MODALS ────────────────────────────────
+function openProfileModal(){
+  const p=P.load();
+  const avg=p.scores.length?Math.round(p.scores.reduce((a,b)=>a+b,0)/p.scores.length):0;
+  const best=p.scores.length?Math.max(...p.scores):0;
+  openModal('USER PROFILE',
+    `<div class="pf-field"><label>Display Name</label><input id="pfN" value="${p.name}" maxlength="30"></div>
+     <div class="pf-field"><label>Job Role</label><select id="pfR">
+       ${['Maintenance Technician','Mechanical Artisan','Reliability Engineer','Engineering Trainee','Maintenance Supervisor','Plant Manager']
+         .map(r=>`<option ${p.role===r?'selected':''}>${r}</option>`).join('')}
+     </select></div>
+     <div style="font-family:var(--mono);font-size:.62rem;color:var(--text-2);margin-top:12px;line-height:1.8">
+       Sessions: ${p.sessions} &nbsp;·&nbsp; Avg Score: ${avg}% &nbsp;·&nbsp; Best: ${best}%<br>
+       ${p.history?.slice(-3).map(h=>`${h.date}: ${h.score}%`).join('<br>')||'No recent sessions'}
+     </div>`,
+    [{lbl:'CANCEL',fn:'closeModal()'},{lbl:'SAVE',fn:'saveProfile()',cls:'conf'}]
+  );
+}
+function saveProfile(){
+  const p=P.load();p.name=$('pfN').value.trim()||p.name;p.role=$('pfR').value;
+  P.save(p);closeModal();P.update();toast('Profile saved','ok');
+}
+
+function showHelp(){
+  openModal('HOW TO USE DIAGNOSTIX v2',
+    `<div style="font-size:.8rem;line-height:1.8;color:var(--text-2)">
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">OBJECTIVE:</strong> Identify equipment faults and apply correct repairs before health deteriorates.</p>
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">1. INSPECT</strong> components by clicking them in the left panel to reveal their condition.</p>
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">2. ANALYSE</strong> sensor data, vibration FFT, temperature trends, alarm log and lubrication report.</p>
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">3. RUN TESTS</strong> from the actions panel to gather more diagnostic data.</p>
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">4. DIAGNOSE</strong> by selecting the root cause in the RCA panel and setting confidence level.</p>
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">5. REPAIR</strong> by selecting and confirming the correct corrective action.</p>
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">MODES:</strong> Guided = hints. Assessment = timed + graded. Expert = multi-fault, budget, time pressure.</p>
+      <p style="margin-bottom:10px"><strong style="color:var(--accent)">NOISE & FALSE POSITIVES:</strong> Some sensors show noise or false positive alarms — cross-reference multiple data sources.</p>
+      <p><strong style="color:var(--accent)">SCORING:</strong> Diagnostic accuracy (30%), safety (20%), time (20%), cost (15%), downtime (10%), secondary fault prevention (5%).</p>
+    </div>`,
+    [{lbl:'GOT IT',fn:'closeModal()',cls:'conf'}]
+  );
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+P.update();
+selectMode('guided');
+renderEqGrid();
+renderScList();
+</script>
+</body>
+</html>
